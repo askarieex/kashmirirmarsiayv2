@@ -1,0 +1,25 @@
+# Flutter/Dart/Pub related
+.dart_tool/
+.packages
+.pub-cache/
+build/
+.macos/
+windows/
+linux/
+web/
+
+# IntelliJ related
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# VS Code related
+.vscode/
+*.code-workspace
+
+# Other
+*.log
+*.DS_Store
+*.flutter-plugins
+*.flutter-plugins-dependencies

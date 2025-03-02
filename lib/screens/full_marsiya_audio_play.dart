@@ -1,0 +1,870 @@
+import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:audio_session/audio_session.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
+import 'package:marquee/marquee.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:cached_network_image/cached_network_image.dart'; // Added import
+
+// Import the persistent mini player notifier.
+import '../widgets/persistent_mini_player.dart';
+
+// Global audio player instance to persist playback.
+final AudioPlayer globalAudioPlayer = AudioPlayer();
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+  await (await AudioSession.instance).configure(
+    const AudioSessionConfiguration.music(),
+  );
+  runApp(const MarsiyaAudioApp());
+}
+
+class MarsiyaAudioApp extends StatelessWidget {
+  const MarsiyaAudioApp({Key? key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+    title: 'Marsiya Audio Player',
+    debugShowCheckedModeBanner: false,
+    theme: ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      colorScheme: const ColorScheme.light(
+        primary: Color(0xFF1A8754),
+        secondary: Color(0xFF0D7148),
+        surface: Colors.white,
+        background: Colors.white,
+        onPrimary: Colors.white,
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: IconThemeData(color: Color(0xFF1A8754)),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF1A8754),
+          foregroundColor: Colors.white,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(20)),
+          ),
+        ),
+      ),
+      sliderTheme: SliderThemeData(
+        activeTrackColor: const Color(0xFF1A8754),
+        inactiveTrackColor: Colors.grey,
+        thumbColor: const Color(0xFF1A8754),
+        trackHeight: 5.0,
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
+        overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+      ),
+      fontFamily: 'Roboto',
+    ),
+    home: const FullMarsiyaAudioPlay(audioId: "13"),
+  );
+}
+
+class FullMarsiyaAudioPlay extends StatefulWidget {
+  final String audioId;
+  final bool autoPlay;
+  const FullMarsiyaAudioPlay({
+    Key? key,
+    required this.audioId,
+    this.autoPlay = false,
+  }) : super(key: key);
+  @override
+  State<FullMarsiyaAudioPlay> createState() => _FullMarsiyaAudioPlayState();
+}
+
+class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
+    with TickerProviderStateMixin {
+  final AudioPlayer _player = globalAudioPlayer;
+  late TabController _tabCtrl;
+  late AnimationController _animCtrl;
+
+  bool isPlaying = false, isLoading = true, isWaiting = false, isLoop = false;
+  String title = "Loading...",
+      errorMsg = "",
+      author = "",
+      dateUploaded = "",
+      durationStr = "",
+      views = "0";
+  String imageUrl = 'https://algodream.in/admin/uploads/default_art.png',
+      audioUrl = '';
+  String? pdfUrl;
+  Duration _duration = Duration.zero, _position = Duration.zero;
+  double? _dragValue;
+  late Widget _lyricsTab;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      showPersistentMiniPlayerNotifier.value = false;
+    });
+    _tabCtrl = TabController(length: 2, vsync: this);
+    _animCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _lyricsTab = const Center(child: CircularProgressIndicator());
+    fetchAudioData().then((_) => _setupAudio());
+    _player.durationStream.listen(
+      (d) => mounted ? setState(() => _duration = d ?? Duration.zero) : null,
+    );
+    _player.positionStream.listen(
+      (p) => mounted ? setState(() => _position = p) : null,
+    );
+    _player.playerStateStream.listen((state) {
+      if (!mounted) return;
+      setState(() {
+        isPlaying = state.playing;
+        if (state.processingState != ProcessingState.loading) isWaiting = false;
+        isPlaying ? _animCtrl.forward() : _animCtrl.reverse();
+        if (state.processingState == ProcessingState.completed && !isLoop) {
+          // Optionally handle next track here
+        }
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      showPersistentMiniPlayerNotifier.value = true;
+    });
+    _tabCtrl.dispose();
+    _animCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _setupAudio() async {
+    final currentSource = _player.audioSource;
+    if (currentSource is UriAudioSource) {
+      final currentTag = currentSource.tag as Map<String, dynamic>?;
+      if (currentTag?['audioId'] == widget.audioId) return;
+    }
+    if (audioUrl.isNotEmpty) {
+      try {
+        await _player.setAudioSource(
+          AudioSource.uri(
+            Uri.parse(audioUrl),
+            tag: {'audioId': widget.audioId},
+          ),
+        );
+        await (await AudioSession.instance).setActive(true);
+        if (widget.autoPlay) {
+          await _player.play();
+          if (mounted) setState(() => isWaiting = true);
+        }
+      } catch (e) {
+        if (mounted) setState(() => errorMsg = "Audio Setup Error: $e");
+      }
+    }
+  }
+
+  Future<void> fetchAudioData() async {
+    try {
+      final res = await http.get(
+        Uri.parse(
+          "https://algodream.in/admin/api/get_marsiya_audio_byId.php?api_key=MOHAMMADASKERYMALIKFROMNOWLARI&audio_id=${widget.audioId}",
+        ),
+      );
+      if (res.statusCode == 200) {
+        final jsonData = json.decode(res.body);
+        if (jsonData['status'] == 'success') {
+          final data = jsonData['data'];
+          String tempAuthor =
+              data['manual_author']?.toString().isNotEmpty == true
+                  ? data['manual_author']
+                  : data['author_name']?.toString().isNotEmpty == true
+                  ? data['author_name']
+                  : data['author_id'] != null
+                  ? await fetchAuthorName(data['author_id'])
+                  : 'Unknown Artist';
+          if (mounted) {
+            setState(() {
+              title = data['title'] ?? 'Audio';
+              author = tempAuthor;
+              if ((data['image_url']?.toString() ?? '').isNotEmpty)
+                imageUrl = data['image_url'];
+              audioUrl = data['audio_url'] ?? '';
+              views = data['views'] ?? '0';
+              pdfUrl = data['pdf_url'] ?? data['lyrics_pdf'];
+              dateUploaded =
+                  data['uploaded_date'] != null
+                      ? (DateTime.tryParse(
+                            data['uploaded_date'],
+                          )?.let((d) => DateFormat('MMM d, yyyy').format(d)) ??
+                          data['uploaded_date'])
+                      : '';
+              durationStr = data['duration'] ?? '';
+              isLoading = false;
+            });
+
+            // Update global variables for the mini player
+            globalTrackTitle = title;
+            globalArtistName = author;
+            globalImageUrl = imageUrl;
+
+            _lyricsTab = LyricsTab(pdfUrl: pdfUrl);
+          }
+        } else if (mounted)
+          setState(() => errorMsg = "API Error: ${jsonData['message']}");
+      } else if (mounted)
+        setState(() => errorMsg = "Server Error: ${res.statusCode}");
+    } catch (e) {
+      if (mounted) setState(() => errorMsg = "Network Error: $e");
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  Future<String> fetchAuthorName(String authorId) async {
+    try {
+      final res = await http.get(
+        Uri.parse(
+          "https://algodream.in/admin/api/get_author.php?api_key=MOHAMMADASKERYMALIKFROMNOWLARI&author_id=$authorId",
+        ),
+      );
+      if (res.statusCode == 200) {
+        final jsonData = json.decode(res.body);
+        return jsonData['status'] == 'success'
+            ? jsonData['data']['name'] ?? 'Unknown Artist'
+            : 'Unknown Artist';
+      }
+    } catch (_) {}
+    return 'Unknown Artist';
+  }
+
+  Future<void> _togglePlayPause() async {
+    try {
+      await (await AudioSession.instance).setActive(true);
+      if (isPlaying) {
+        await _player.pause();
+        if (mounted) setState(() => isWaiting = false);
+      } else {
+        if (_player.processingState == ProcessingState.idle)
+          await _setupAudio();
+        await _player.play();
+        if (mounted) setState(() => isWaiting = true);
+      }
+    } catch (e) {
+      if (mounted) setState(() => errorMsg = "Playback error: $e");
+    }
+  }
+
+  Future<void> _seekForward() async =>
+      await _player.seek(_position + const Duration(seconds: 10));
+  Future<void> _seekBackward() async =>
+      await _player.seek(_position - const Duration(seconds: 10));
+  void _toggleLoop() => setState(() => isLoop = !isLoop);
+  String _formatDuration(Duration d) =>
+      "${d.inMinutes.remainder(60).toString().padLeft(2, '0')}:${d.inSeconds.remainder(60).toString().padLeft(2, '0')}";
+
+  @override
+  Widget build(BuildContext context) {
+    final sliderMax =
+        _duration.inSeconds > 0 ? _duration.inSeconds.toDouble() : 1.0;
+    final sliderValue = (_dragValue ?? _position.inSeconds.toDouble()).clamp(
+      0.0,
+      sliderMax,
+    );
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child:
+            isLoading
+                ? Center(
+                  child: CircularProgressIndicator(
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                )
+                : errorMsg.isNotEmpty
+                ? _errorView()
+                : Column(
+                  children: [
+                    _topNavBar(),
+                    _customTabBar(),
+                    Expanded(
+                      child: TabBarView(
+                        controller: _tabCtrl,
+                        children: [_audioPlayerTab(context), _lyricsTab],
+                      ),
+                    ),
+                    _playerControls(context, sliderValue, sliderMax),
+                  ],
+                ),
+      ),
+    );
+  }
+
+  Widget _topNavBar() => Container(
+    decoration: BoxDecoration(
+      color: Colors.white,
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.03),
+          blurRadius: 10,
+          spreadRadius: 1,
+        ),
+      ],
+    ),
+    padding: const EdgeInsets.only(left: 8, top: 8, bottom: 4),
+    child: Align(
+      alignment: Alignment.centerLeft,
+      child: IconButton(
+        icon: Icon(
+          Icons.arrow_back,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        onPressed: () => Navigator.pop(context),
+      ),
+    ),
+  );
+
+  Widget _customTabBar() => Container(
+    margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+    height: 48,
+    decoration: BoxDecoration(
+      color: Colors.grey.shade100,
+      borderRadius: BorderRadius.circular(25),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.03),
+          blurRadius: 4,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(25),
+      child: TabBar(
+        controller: _tabCtrl,
+        indicator: BoxDecoration(
+          color: const Color(0xFF1A8754),
+          borderRadius: BorderRadius.circular(25),
+        ),
+        labelColor: Colors.white,
+        unselectedLabelColor: Colors.grey.shade800,
+        tabs: const [
+          Tab(
+            icon: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.music_note, size: 18),
+                SizedBox(width: 8),
+                Text(
+                  "Audio",
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+          Tab(
+            icon: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.description, size: 18),
+                SizedBox(width: 8),
+                Text(
+                  "Lyrics",
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _errorView() => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            color: Theme.of(context).colorScheme.primary,
+            size: 60,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            "Something went wrong",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            errorMsg,
+            style: const TextStyle(color: Colors.grey, fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () async {
+              setState(() {
+                isLoading = true;
+                errorMsg = "";
+              });
+              await fetchAudioData();
+              await _setupAudio();
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text("Try Again"),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _audioPlayerTab(BuildContext context) => Column(
+    children: [
+      const SizedBox(height: 20),
+      Container(
+        width: 240,
+        height: 240,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF1A8754).withOpacity(0.15),
+              blurRadius: 25,
+              spreadRadius: 2,
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              spreadRadius: 1,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: CachedNetworkImage(
+            imageUrl: imageUrl,
+            width: 240,
+            height: 240,
+            fit: BoxFit.cover,
+            placeholder:
+                (context, url) =>
+                    const Center(child: CircularProgressIndicator()),
+            errorWidget:
+                (context, url, error) => Container(
+                  color: Colors.grey[200],
+                  child: const Icon(
+                    Icons.image_not_supported,
+                    size: 60,
+                    color: Colors.black54,
+                  ),
+                ),
+          ),
+        ),
+      ),
+      const Spacer(),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _infoChip(Icons.visibility_outlined, "$views views"),
+            _infoChip(Icons.calendar_today_outlined, dateUploaded),
+          ],
+        ),
+      ),
+      const SizedBox(height: 20),
+    ],
+  );
+
+  Widget _infoChip(IconData icon, String text) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+    decoration: BoxDecoration(
+      color: Colors.grey.shade100,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      children: [
+        Icon(icon, size: 14, color: Colors.grey.shade600),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade600,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _playerControls(
+    BuildContext context,
+    double sliderValue,
+    double sliderMax,
+  ) => Container(
+    color: Colors.white,
+    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _titleAuthor(),
+        SliderTheme(
+          data: SliderThemeData(
+            trackHeight: 5,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+            activeTrackColor: Theme.of(context).colorScheme.primary,
+            inactiveTrackColor: Colors.grey.shade200,
+            thumbColor: Theme.of(context).colorScheme.primary,
+            overlayColor: Theme.of(
+              context,
+            ).colorScheme.primary.withOpacity(0.2),
+          ),
+          child: Column(
+            children: [
+              Slider(
+                value: sliderValue,
+                min: 0.0,
+                max: sliderMax,
+                onChanged: (v) => setState(() => _dragValue = v),
+                onChangeEnd: (v) async {
+                  await _player.seek(Duration(seconds: v.toInt()));
+                  setState(() => _dragValue = null);
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _formatDuration(_position),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      _formatDuration(_duration),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _ctrlBtn(
+              isLoop ? Icons.repeat_one : Icons.repeat,
+              _toggleLoop,
+              size: 22,
+              color:
+                  isLoop ? Theme.of(context).colorScheme.primary : Colors.black,
+            ),
+            _ctrlBtn(Icons.replay_10_rounded, _seekBackward, size: 26),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF1A8754).withOpacity(0.3),
+                    blurRadius: 12,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child:
+                  isWaiting
+                      ? const Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        ),
+                      )
+                      : Material(
+                        color: Colors.transparent,
+                        shape: const CircleBorder(),
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          onTap: _togglePlayPause,
+                          child: Icon(
+                            isPlaying ? Icons.pause : Icons.play_arrow,
+                            color: Colors.white,
+                            size: 32,
+                          ),
+                        ),
+                      ),
+            ),
+            _ctrlBtn(Icons.forward_10_rounded, _seekForward, size: 26),
+            _ctrlBtn(
+              Icons.replay,
+              () async => await _player.seek(Duration.zero),
+              size: 22,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+      ],
+    ),
+  );
+
+  Widget _titleAuthor() => Container(
+    padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
+    margin: const EdgeInsets.only(bottom: 8),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        title.length > 30
+            ? SizedBox(
+              height: 28,
+              child: Marquee(
+                text: title,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+                scrollAxis: Axis.horizontal,
+                blankSpace: 50.0,
+                velocity: 30.0,
+                pauseAfterRound: const Duration(seconds: 2),
+                showFadingOnlyWhenScrolling: true,
+                fadingEdgeStartFraction: 0.1,
+                fadingEdgeEndFraction: 0.1,
+                startPadding: 10.0,
+              ),
+            )
+            : Text(
+              title,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            const Text(
+              "zakir:",
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+                fontWeight: FontWeight.w600,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              author.isNotEmpty ? author : "Unknown Artist",
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.black,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+
+  Widget _ctrlBtn(
+    IconData icon,
+    VoidCallback onPressed, {
+    required double size,
+    Color? color,
+  }) => IconButton(
+    icon: Icon(icon, color: color ?? Colors.black, size: size),
+    onPressed: onPressed,
+  );
+}
+
+class LyricsTab extends StatefulWidget {
+  final String? pdfUrl;
+  const LyricsTab({Key? key, this.pdfUrl}) : super(key: key);
+  @override
+  State<LyricsTab> createState() => _LyricsTabState();
+}
+
+class _LyricsTabState extends State<LyricsTab>
+    with AutomaticKeepAliveClientMixin {
+  bool _isLoading = true;
+  @override
+  void initState() {
+    super.initState();
+    if (widget.pdfUrl == null || widget.pdfUrl!.isEmpty) _isLoading = false;
+  }
+
+  @override
+  bool get wantKeepAlive => true;
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    if (widget.pdfUrl == null || widget.pdfUrl!.isEmpty) return _noPdf();
+    return Stack(
+      children: [
+        Column(
+          children: [
+            const SizedBox(height: 10),
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: SfPdfViewer.network(
+                    widget.pdfUrl!,
+                    onDocumentLoaded: (_) => setState(() => _isLoading = false),
+                    onDocumentLoadFailed:
+                        (_) => setState(() => _isLoading = false),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (_isLoading) const Center(child: CircularProgressIndicator()),
+        Positioned(
+          top: 16,
+          right: 16,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => FullScreenPdfViewer(pdfUrl: widget.pdfUrl!),
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.fullscreen,
+                  size: 18,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _noPdf() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 20),
+    child: Column(
+      children: [
+        const SizedBox(height: 20),
+        Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: Icon(
+            Icons.lyrics_outlined,
+            size: 50,
+            color: Colors.grey.shade400,
+          ),
+        ),
+        const SizedBox(height: 20),
+        const Text(
+          "No Lyrics Available",
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 30),
+          child: Text(
+            "We couldn't find lyrics for this audio. You can still enjoy listening to the beautiful recitation.",
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 14,
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class FullScreenPdfViewer extends StatelessWidget {
+  final String pdfUrl;
+  const FullScreenPdfViewer({Key? key, required this.pdfUrl}) : super(key: key);
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text("PDF Full Screen"),
+      backgroundColor: Theme.of(context).colorScheme.primary,
+    ),
+    body: SfPdfViewer.network(pdfUrl),
+  );
+}
+
+extension LetExtension on DateTime {
+  T let<T>(T Function(DateTime) op) => op(this);
+}
