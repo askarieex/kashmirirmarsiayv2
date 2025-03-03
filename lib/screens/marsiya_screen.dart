@@ -4,6 +4,7 @@ import 'full_marsiya_screen.dart';
 import 'marsiya_audio_screen.dart';
 import 'intikhaab_screen.dart';
 import 'taht_ul_lafz_screen.dart';
+import 'main_navigation_screen.dart';
 
 class MarsiyaScreen extends StatefulWidget {
   const MarsiyaScreen({Key? key}) : super(key: key);
@@ -14,29 +15,21 @@ class MarsiyaScreen extends StatefulWidget {
 
 class _MarsiyaScreenState extends State<MarsiyaScreen>
     with SingleTickerProviderStateMixin {
-  // Updated color palette for better visibility
-  static const Color primaryColor = Color(0xFF1E5128);
-  static const Color secondaryColor = Color(0xFF4E9F3D);
-  static const Color textWhite = Colors.white;
-  static const Color textGray = Color(0xFFE0E0E0);
-  static const Color cardBackground = Color(0xFF121212);
-  static const Color iconBackgroundColor = Color(0xFF2C2C2C);
-  static const Color iconHighlightColor = Color(0xFF3A7D44);
+  // Updated color palette to match the image
+  static const Color primaryColor = Color(0xFF008C5F);
+  static const Color backgroundColor = Color(0xFFBCE4E1);
+  static const Color cardBackground = Color(0xFFF5F5F5);
+  static const Color textDark = Color(0xFF212121);
+  static const Color textMedium = Color(0xFF757575);
 
   // Icons
-  static const IconData audioIcon = Icons.headset_rounded;
-  static const IconData marsiyaIcon = Icons.auto_stories_rounded;
-  static const IconData intikhaabIcon = Icons.bookmark_rounded;
-  static const IconData wordIcon = Icons.text_fields_rounded;
+  static const IconData audioIcon = Icons.headphones_rounded;
+  static const IconData bookIcon = Icons.book_rounded;
+  static const IconData bookmarkIcon = Icons.bookmark_rounded;
+  static const IconData wordIcon = Icons.translate_rounded;
 
   late AnimationController _animationController;
   final List<Animation<double>> _animations = [];
-
-  // Mini audio player state
-  String currentSong = "Askery";
-  String currentTime = "04:15";
-  String totalTime = "09:49";
-  bool isPlaying = true;
 
   // Sections with refined titles
   final List<Map<String, dynamic>> sections = [
@@ -49,13 +42,13 @@ class _MarsiyaScreenState extends State<MarsiyaScreen>
     {
       'titleEn': 'Complete Marsiya',
       'titleUr': 'مکمل مضمون',
-      'icon': marsiyaIcon,
+      'icon': bookIcon,
       'screen': const FullMarsiyaScreen(),
     },
     {
       'titleEn': 'Selected Verses',
       'titleUr': 'انتخاب',
-      'icon': intikhaabIcon,
+      'icon': bookmarkIcon,
       'screen': const IntikhaabScreen(),
     },
     {
@@ -74,10 +67,10 @@ class _MarsiyaScreenState extends State<MarsiyaScreen>
       duration: const Duration(milliseconds: 800),
     );
 
-    // Create staggered animations
+    // Create staggered animations for each grid item
     for (int i = 0; i < sections.length; i++) {
       final start = i * 0.15;
-      final end = start + 0.4 > 1.0 ? 1.0 : start + 0.4;
+      final end = (start + 0.4) > 1.0 ? 1.0 : (start + 0.4);
       _animations.add(
         Tween<double>(begin: 0.0, end: 1.0).animate(
           CurvedAnimation(
@@ -87,7 +80,6 @@ class _MarsiyaScreenState extends State<MarsiyaScreen>
         ),
       );
     }
-
     _animationController.forward();
   }
 
@@ -103,59 +95,111 @@ class _MarsiyaScreenState extends State<MarsiyaScreen>
     final isPortrait = size.height > size.width;
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: primaryColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Marsiya Collection',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search, color: Colors.white),
-            onPressed: () {
-              // Search functionality
-            },
-          ),
-        ],
+      backgroundColor: backgroundColor,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(0), // Hide default AppBar
+        child: AppBar(backgroundColor: backgroundColor, elevation: 0),
       ),
       body: Stack(
         children: [
-          ListView(
-            padding: const EdgeInsets.only(bottom: 80), // Space for the player
+          Column(
             children: [
+              // Custom app bar with back button
+              Padding(
+                padding: const EdgeInsets.only(top: 10, left: 16, right: 16),
+                child: Row(
+                  children: [
+                    // Back button that matches the image
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.chevron_left,
+                          color: Colors.black,
+                          size: 24,
+                        ),
+                        padding: EdgeInsets.zero,
+                        onPressed: () {
+                          // Check if we're on the root or nested navigation
+                          final bool canPop = Navigator.of(context).canPop();
+
+                          if (canPop) {
+                            // If we can pop, we're in a nested navigation
+                            Navigator.of(context).pop();
+                          } else {
+                            // If we can't pop, we're likely in a tab - try to find the parent navigator
+                            final MainNavigationScreenState? parentState =
+                                context
+                                    .findAncestorStateOfType<
+                                      MainNavigationScreenState
+                                    >();
+
+                            if (parentState != null) {
+                              // Found the parent, switch to home tab
+                              parentState.changeTab(0); // Switch to home tab
+                            } else {
+                              // Fallback - try to pop from root navigator
+                              Navigator.of(context, rootNavigator: true).pop();
+                            }
+                          }
+                        },
+                      ),
+                    ),
+                    const Expanded(
+                      child: Center(
+                        child: Text(
+                          'Marsiya Collection',
+                          style: TextStyle(
+                            color: textDark,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Empty container for balance
+                    const SizedBox(width: 40),
+                  ],
+                ),
+              ),
+
               // Header section
               Container(
-                color: primaryColor,
-                padding: const EdgeInsets.only(bottom: 25, top: 15),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 20,
+                  horizontal: 16,
+                ),
                 child: Column(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(15),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
-                        Icons.auto_stories_rounded,
-                        color: Colors.white,
-                        size: 36,
+                        Icons.menu_book,
+                        color: primaryColor,
+                        size: 32,
                       ),
                     ),
                     const SizedBox(height: 15),
                     const Text(
                       'Explore the rich tradition of elegiac poetry',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: textDark,
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
@@ -164,9 +208,10 @@ class _MarsiyaScreenState extends State<MarsiyaScreen>
                   ],
                 ),
               ),
+
               // Categories heading
               Padding(
-                padding: const EdgeInsets.fromLTRB(15, 25, 15, 20),
+                padding: const EdgeInsets.fromLTRB(16, 5, 16, 10),
                 child: Row(
                   children: [
                     Container(
@@ -181,53 +226,61 @@ class _MarsiyaScreenState extends State<MarsiyaScreen>
                     const Text(
                       'Browse Categories',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF212121),
+                        color: textDark,
                       ),
                     ),
                   ],
                 ),
               ),
-              // Grid layout with cards
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                child: GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: sections.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: isPortrait ? 2 : 4,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 0.95, // Adjusted to prevent overflow
+
+              // Grid layout with category cards (white container)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: GridView.builder(
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: sections.length,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                          childAspectRatio: 1.0,
+                        ),
+                        itemBuilder: (context, index) {
+                          final section = sections[index];
+                          return _buildCategoryCard(
+                            context,
+                            section['titleEn'] as String,
+                            section['titleUr'] as String,
+                            section['icon'] as IconData,
+                            section['screen'] as Widget,
+                            _animations[index],
+                          );
+                        },
+                      ),
+                    ),
                   ),
-                  itemBuilder: (context, index) {
-                    final section = sections[index];
-                    return _buildCategoryCard(
-                      context,
-                      section['titleEn'] as String,
-                      section['titleUr'] as String,
-                      section['icon'] as IconData,
-                      section['screen'] as Widget,
-                      _animations[index],
-                    );
-                  },
                 ),
               ),
+              // Bottom padding to ensure content is visible above tab bar if needed
+              SizedBox(height: 10),
             ],
           ),
-          // Mini player at bottom
-          Positioned(bottom: 0, left: 0, right: 0, child: _buildMiniPlayer()),
         ],
       ),
     );
   }
 
-  // Category card with better contrast
+  // Category card
   Widget _buildCategoryCard(
     BuildContext context,
     String titleEn,
@@ -246,48 +299,50 @@ class _MarsiyaScreenState extends State<MarsiyaScreen>
             child: InkWell(
               onTap: () {
                 HapticFeedback.lightImpact();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => screen),
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => screen,
+                    maintainState: true,
+                  ),
                 );
               },
               child: Container(
                 decoration: BoxDecoration(
-                  color: cardBackground,
+                  color: backgroundColor.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(10),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
                         padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: iconBackgroundColor,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(icon, size: 28, color: iconHighlightColor),
+                        child: Icon(icon, size: 28, color: primaryColor),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 10),
                       Text(
                         titleEn,
                         style: const TextStyle(
-                          fontSize: 15,
+                          fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: textWhite,
+                          color: textDark,
                         ),
                         textAlign: TextAlign.center,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Text(
                         titleUr,
                         style: const TextStyle(
-                          fontSize: 15,
+                          fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color: textGray,
+                          color: textMedium,
                         ),
                         textAlign: TextAlign.center,
                         textDirection: TextDirection.rtl,
@@ -302,103 +357,6 @@ class _MarsiyaScreenState extends State<MarsiyaScreen>
           ),
         );
       },
-    );
-  }
-
-  // Mini player at the bottom
-  Widget _buildMiniPlayer() {
-    return Container(
-      height: 70,
-      decoration: BoxDecoration(
-        color: primaryColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Album art
-          Container(
-            width: 60,
-            height: 60,
-            margin: const EdgeInsets.only(left: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
-              image: const DecorationImage(
-                image: AssetImage('assets/placeholder.jpg'),
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-          // Song info
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    currentSong,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "$currentTime / $totalTime",
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Controls
-          IconButton(
-            icon: const Icon(
-              Icons.skip_previous,
-              color: Colors.white,
-              size: 28,
-            ),
-            onPressed: () {},
-          ),
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: Icon(
-                isPlaying ? Icons.pause : Icons.play_arrow,
-                color: primaryColor,
-                size: 24,
-              ),
-              onPressed: () {
-                setState(() {
-                  isPlaying = !isPlaying;
-                });
-              },
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.skip_next, color: Colors.white, size: 28),
-            onPressed: () {},
-          ),
-        ],
-      ),
     );
   }
 }

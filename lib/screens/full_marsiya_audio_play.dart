@@ -7,12 +7,16 @@ import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:marquee/marquee.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
-import 'package:cached_network_image/cached_network_image.dart'; // Added import
+import 'package:cached_network_image/cached_network_image.dart';
 
 // Import the persistent mini player notifier.
 import '../widgets/persistent_mini_player.dart';
 
-// Global audio player instance to persist playback.
+// Import additional screens for bottom navigation.
+import 'home_screen.dart';
+import 'noha_screen.dart';
+
+/// Global audio player instance to persist playback.
 final AudioPlayer globalAudioPlayer = AudioPlayer();
 
 Future<void> main() async {
@@ -96,16 +100,25 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
       dateUploaded = "",
       durationStr = "",
       views = "0";
-  String imageUrl = 'https://algodream.in/admin/uploads/default_art.png',
+  String imageUrl =
+          'https://algodream.in/admin/uploads/default_art.png', // default image
       audioUrl = '';
   String? pdfUrl;
   Duration _duration = Duration.zero, _position = Duration.zero;
   double? _dragValue;
   late Widget _lyricsTab;
 
+  // Variables for recommendation data.
+  List<dynamic> recommendedSongs = [];
+  int currentIndex = -1;
+
+  // Flag to indicate if this screen is being replaced (via next/previous navigation)
+  bool _isReplaced = false;
+
   @override
   void initState() {
     super.initState();
+    // Hide persistent mini-player on this full-screen player.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       showPersistentMiniPlayerNotifier.value = false;
     });
@@ -115,7 +128,10 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
       duration: const Duration(milliseconds: 300),
     );
     _lyricsTab = const Center(child: CircularProgressIndicator());
-    fetchAudioData().then((_) => _setupAudio());
+    fetchAudioData().then((_) {
+      _setupAudio();
+      fetchRecommendations();
+    });
     _player.durationStream.listen(
       (d) => mounted ? setState(() => _duration = d ?? Duration.zero) : null,
     );
@@ -129,7 +145,8 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
         if (state.processingState != ProcessingState.loading) isWaiting = false;
         isPlaying ? _animCtrl.forward() : _animCtrl.reverse();
         if (state.processingState == ProcessingState.completed && !isLoop) {
-          // Optionally handle next track here
+          // When the current audio completes, play the next track automatically.
+          _playNext();
         }
       });
     });
@@ -137,9 +154,12 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      showPersistentMiniPlayerNotifier.value = true;
-    });
+    // Only re-enable the mini-player if this screen is not being replaced.
+    if (!_isReplaced) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        showPersistentMiniPlayerNotifier.value = true;
+      });
+    }
     _tabCtrl.dispose();
     _animCtrl.dispose();
     super.dispose();
@@ -209,7 +229,7 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
               isLoading = false;
             });
 
-            // Update global variables for the mini player
+            // Update global variables for the mini player.
             globalTrackTitle = title;
             globalArtistName = author;
             globalImageUrl = imageUrl;
@@ -244,6 +264,30 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
     return 'Unknown Artist';
   }
 
+  Future<void> fetchRecommendations() async {
+    try {
+      final res = await http.get(
+        Uri.parse(
+          "https://algodream.in/admin/api/get_marsiya_audio_recommendation.php?api_key=MOHAMMADASKERYMALIKFROMNOWLARI&audio_id=${widget.audioId}",
+        ),
+      );
+      if (res.statusCode == 200) {
+        final jsonData = json.decode(res.body);
+        if (jsonData['status'] == 'success') {
+          final data = jsonData['data'];
+          setState(() {
+            recommendedSongs = data;
+            currentIndex = recommendedSongs.indexWhere(
+              (song) => song['id'] == widget.audioId,
+            );
+          });
+        }
+      }
+    } catch (e) {
+      // Handle recommendation errors silently.
+    }
+  }
+
   Future<void> _togglePlayPause() async {
     try {
       await (await AudioSession.instance).setActive(true);
@@ -268,6 +312,41 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
   void _toggleLoop() => setState(() => isLoop = !isLoop);
   String _formatDuration(Duration d) =>
       "${d.inMinutes.remainder(60).toString().padLeft(2, '0')}:${d.inSeconds.remainder(60).toString().padLeft(2, '0')}";
+
+  Future<void> _playNext() async {
+    if (recommendedSongs.isNotEmpty) {
+      int newIndex = currentIndex + 1;
+      if (newIndex >= recommendedSongs.length) {
+        newIndex = 0; // loop back to the first track.
+      }
+      final newAudioId = recommendedSongs[newIndex]['id'];
+      // Mark this screen as being replaced so mini-player is not shown on dispose.
+      _isReplaced = true;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => FullMarsiyaAudioPlay(audioId: newAudioId),
+        ),
+      );
+    }
+  }
+
+  Future<void> _playPrevious() async {
+    if (recommendedSongs.isNotEmpty) {
+      int newIndex = currentIndex - 1;
+      if (newIndex < 0) {
+        newIndex = recommendedSongs.length - 1; // loop to the last track.
+      }
+      final newAudioId = recommendedSongs[newIndex]['id'];
+      _isReplaced = true;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => FullMarsiyaAudioPlay(audioId: newAudioId),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -578,14 +657,11 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _ctrlBtn(
-              isLoop ? Icons.repeat_one : Icons.repeat,
-              _toggleLoop,
-              size: 22,
-              color:
-                  isLoop ? Theme.of(context).colorScheme.primary : Colors.black,
-            ),
+            // Skip Previous Button
+            _ctrlBtn(Icons.skip_previous, _playPrevious, size: 26),
+            // Seek Backward Button
             _ctrlBtn(Icons.replay_10_rounded, _seekBackward, size: 26),
+            // Play/Pause Button
             Container(
               width: 64,
               height: 64,
@@ -627,12 +703,10 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
                         ),
                       ),
             ),
+            // Seek Forward Button
             _ctrlBtn(Icons.forward_10_rounded, _seekForward, size: 26),
-            _ctrlBtn(
-              Icons.replay,
-              () async => await _player.seek(Duration.zero),
-              size: 22,
-            ),
+            // Skip Next Button
+            _ctrlBtn(Icons.skip_next, _playNext, size: 26),
           ],
         ),
         const SizedBox(height: 12),

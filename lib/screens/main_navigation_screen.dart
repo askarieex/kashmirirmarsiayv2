@@ -1,169 +1,157 @@
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
+import 'marsiya_screen.dart';
+import 'noha_screen.dart';
+import 'search_screen.dart';
 
-/// A main navigation screen with:
-/// - A white side drawer.
-/// - 4 bottom tabs: Home, Marsiya, Noha, Search.
-/// - Bottom nav bar bigger, with bigger icons.
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({Key? key}) : super(key: key);
 
   @override
-  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
+  State<MainNavigationScreen> createState() => MainNavigationScreenState();
 }
 
-class _MainNavigationScreenState extends State<MainNavigationScreen> {
+class MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
 
+  // Public method to allow other widgets to change the current tab
+  void changeTab(int index) {
+    if (index >= 0 && index < _screens.length) {
+      setState(() {
+        _currentIndex = index;
+      });
+    }
+  }
+
+  // List of screens corresponding to each tab.
   late final List<Widget> _screens = [
     const HomeScreen(),
-    // Placeholder screens for other tabs
-    const Center(
-      child: Text(
-        'Marsiya Screen',
-        style: TextStyle(color: Colors.grey, fontSize: 18),
-      ),
-    ),
-    const Center(
-      child: Text(
-        'Noha Screen',
-        style: TextStyle(color: Colors.grey, fontSize: 18),
-      ),
-    ),
-    const Center(
-      child: Text(
-        'Search Screen',
-        style: TextStyle(color: Colors.grey, fontSize: 18),
-      ),
-    ),
+    const MarsiyaScreen(),
+    const NohaScreen(),
+    const SearchScreen(),
   ];
 
-  // Increase bottom nav height
-  static const double bottomNavHeight = 80;
-
-  // White background for the nav bar
-  static const Color bottomNavColor = Colors.white;
+  // Theme colors for the navigation.
+  static const Color primaryColor = Color(0xFF0D9051);
+  static const Color backgroundColor = Color(0xFF212121);
+  static const Color inactiveColor = Color(0xFFAAAAAA);
+  static const double navBarHeight = 60.0;
+  static const double iconSize = 24.0;
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Scaffold(
-      // White side drawer
       drawer: _buildSideDrawer(),
-      body: _screens[_currentIndex],
+      body: IndexedStack(index: _currentIndex, children: _screens),
+      extendBody: true,
       bottomNavigationBar: Container(
-        height: bottomNavHeight,
+        height: navBarHeight + bottomInset,
         decoration: BoxDecoration(
-          color: bottomNavColor,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 6,
-              offset: const Offset(2, 2),
-            ),
-          ],
+          color: backgroundColor,
+          border: Border(
+            top: BorderSide(color: Colors.black.withOpacity(0.1), width: 0.5),
+          ),
         ),
-        child: BottomNavigationBar(
-          // Make icons bigger
-          iconSize: 30,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          currentIndex: _currentIndex,
-          onTap: (i) => setState(() => _currentIndex = i),
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: Colors.teal, // Teal highlight for selected
-          unselectedItemColor: Colors.grey,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.music_note),
-              label: 'Marsiya',
+        child: Padding(
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildNavItem(0, Icons.home, 'Home'),
+              _buildNavItem(1, Icons.music_note, 'Marsiya'),
+              _buildNavItem(2, Icons.headphones, 'Noha'),
+              _buildNavItem(3, Icons.search, 'Search'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int index, IconData icon, String label) {
+    final isSelected = _currentIndex == index;
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _currentIndex = index),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? primaryColor : inactiveColor,
+              size: iconSize,
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.headphones),
-              label: 'Noha',
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? primaryColor : inactiveColor,
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
             ),
-            BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
           ],
         ),
       ),
     );
   }
 
-  /// A white side drawer with a clean design
   Widget _buildSideDrawer() {
     return Drawer(
-      child: Column(
-        children: [
-          // A white DrawerHeader
-          DrawerHeader(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.shade300,
-                  blurRadius: 6,
-                  offset: const Offset(2, 2),
-                ),
-              ],
-            ),
-            child: Align(
-              alignment: Alignment.bottomLeft,
-              child: Text(
-                'Kashmiri Marsiya',
-                style: TextStyle(
-                  color: Colors.grey[800],
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+      child: Container(
+        color: Colors.white,
+        child: Column(
+          children: [
+            DrawerHeader(
+              decoration: const BoxDecoration(color: primaryColor),
+              child: Align(
+                alignment: Alignment.bottomLeft,
+                child: Text(
+                  'Kashmiri Marsiya',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
-          ),
-          // Drawer items
-          ListTile(
-            leading: const Icon(Icons.home),
-            title: const Text("Home"),
-            onTap: () {
-              Navigator.pop(context);
-              setState(() => _currentIndex = 0);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.music_note),
-            title: const Text("Marsiya"),
-            onTap: () {
-              Navigator.pop(context);
-              setState(() => _currentIndex = 1);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.headphones),
-            title: const Text("Noha"),
-            onTap: () {
-              Navigator.pop(context);
-              setState(() => _currentIndex = 2);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.search),
-            title: const Text("Search"),
-            onTap: () {
-              Navigator.pop(context);
-              setState(() => _currentIndex = 3);
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: const Text("About Us"),
-            onTap: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('About Us tapped!')));
-            },
-          ),
-        ],
+            _buildDrawerItem(Icons.home, "Home", 0),
+            _buildDrawerItem(Icons.music_note, "Marsiya", 1),
+            _buildDrawerItem(Icons.headphones, "Noha", 2),
+            _buildDrawerItem(Icons.search, "Search", 3),
+            const Divider(),
+            _buildDrawerItem(Icons.info_outline, "About Us", -1),
+            _buildDrawerItem(Icons.contact_support_outlined, "Contact Us", -2),
+            _buildDrawerItem(Icons.favorite_outline, "Favorites", -3),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildDrawerItem(IconData icon, String title, int index) {
+    final bool isSelected = index == _currentIndex && index >= 0;
+    return ListTile(
+      leading: Icon(icon, color: isSelected ? primaryColor : Colors.grey[700]),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: isSelected ? primaryColor : Colors.grey[800],
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      onTap: () {
+        Navigator.pop(context);
+        if (index >= 0) {
+          setState(() => _currentIndex = index);
+        } else {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('$title tapped!')));
+        }
+      },
     );
   }
 }

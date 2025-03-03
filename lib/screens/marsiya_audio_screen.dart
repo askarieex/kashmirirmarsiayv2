@@ -10,6 +10,10 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'full_marsiya_audio_play.dart';
 import 'dart:typed_data';
 
+// Import your bottom navigation targets (if not already imported)
+import 'home_screen.dart';
+import 'noha_screen.dart';
+
 const Color accentTeal = Color(0xFF008F41);
 
 class MarsiyaAudioScreen extends StatefulWidget {
@@ -342,6 +346,7 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
           ],
         ),
       ),
+      // Bottom Navigation Bar REMOVED
     );
   }
 
@@ -368,44 +373,6 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
                         color: Colors.teal.withOpacity(0.1),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 56,
-                        height: 56,
-                        margin: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(28),
-                        ),
-                      ),
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              height: 12,
-                              width: 180,
-                              color: Colors.grey.shade200,
-                              margin: const EdgeInsets.only(bottom: 8),
-                            ),
-                            Container(
-                              height: 12,
-                              width: 100,
-                              color: Colors.grey.shade200,
-                              margin: const EdgeInsets.only(bottom: 8),
-                            ),
-                            Container(
-                              height: 12,
-                              width: 150,
-                              color: Colors.grey.shade200,
-                            ),
-                          ],
-                        ),
                       ),
                     ],
                   ),
