@@ -4,8 +4,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'dart:ui' as ui;
-import 'full_marsiya_audio_play.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'full_marsiya_audio_play.dart';
+import 'dart:typed_data';
 
 const Color accentTeal = Color(0xFF008F41);
 
@@ -23,108 +26,240 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   bool _isLoading = true;
+  bool _isLoadingMore = false;
 
   // List to hold the marsiya audio data from the API.
   List<Map<String, dynamic>> _marsiyaList = [];
+
+  // Filtered list cache to avoid recalculating on every build
+  List<Map<String, dynamic>>? _cachedFilteredList;
 
   // Cache for fetched author names.
   final Map<String, String> _authorCache = {};
 
   // Pagination variables.
   final int _itemsPerPage = 20;
-  int _currentMax = 20;
+  int _currentPage = 1;
+  bool _hasMoreData = true;
 
   // Global playlist and current track index.
   List<Map<String, dynamic>> _globalPlaylist = [];
   int _globalCurrentIndex = -1;
 
+  // Custom cache manager for audio meta data
+  final _cacheManager = DefaultCacheManager();
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this)..addListener(() {
-      setState(() {}); // refresh on tab change
+      _refreshDataForTab();
     });
     _scrollController = ScrollController();
     _scrollController.addListener(_scrollListener);
     fetchMarsiya();
   }
 
+  void _refreshDataForTab() {
+    setState(() {
+      _cachedFilteredList = null;
+      _sortByCurrentTab();
+    });
+  }
+
   void _scrollListener() {
-    if (_searchQuery.isEmpty) {
+    if (_searchQuery.isEmpty && !_isLoadingMore && _hasMoreData) {
       if (_scrollController.position.pixels >=
           _scrollController.position.maxScrollExtent - 200) {
-        if (_currentMax < filteredMarsiyaList.length) {
-          setState(() {
-            _currentMax =
-                (_currentMax + _itemsPerPage) > filteredMarsiyaList.length
-                    ? filteredMarsiyaList.length
-                    : _currentMax + _itemsPerPage;
-          });
-        }
+        _loadMoreData();
       }
     }
   }
 
-  Future<void> fetchMarsiya() async {
-    const url =
-        "https://algodream.in/admin/api/get_marsiya.php?api_key=MOHAMMADASKERYMALIKFROMNOWLARI";
+  Future<void> _loadMoreData() async {
+    if (_isLoadingMore || !_hasMoreData) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    _currentPage++;
+    await fetchMarsiya(page: _currentPage, isLoadMore: true);
+
+    setState(() {
+      _isLoadingMore = false;
+    });
+  }
+
+  void _sortByCurrentTab() {
+    if (_marsiyaList.isEmpty) return;
+
+    switch (_tabController.index) {
+      case 0: // All - no specific sorting
+        break;
+      case 1: // Recent
+        _marsiyaList.sort((a, b) {
+          final dateA =
+              DateTime.tryParse(a['uploaded_date'] ?? '') ?? DateTime(1970);
+          final dateB =
+              DateTime.tryParse(b['uploaded_date'] ?? '') ?? DateTime(1970);
+          return dateB.compareTo(dateA);
+        });
+        break;
+      case 2: // Popular
+        _marsiyaList.sort((a, b) {
+          final viewsA = int.tryParse(a['views'] ?? '0') ?? 0;
+          final viewsB = int.tryParse(b['views'] ?? '0') ?? 0;
+          return viewsB.compareTo(viewsA);
+        });
+        break;
+    }
+  }
+
+  Future<void> fetchMarsiya({int page = 1, bool isLoadMore = false}) async {
+    if (!isLoadMore) {
+      setState(() {
+        _isLoading = true;
+        _cachedFilteredList = null;
+      });
+    }
+
+    // Adapted URL to support pagination
+    final url =
+        "https://algodream.in/admin/api/get_marsiya.php?api_key=MOHAMMADASKERYMALIKFROMNOWLARI&page=$page&limit=$_itemsPerPage";
+
     try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final jsonData = json.decode(response.body);
-        if (jsonData['status'] == 'success') {
-          setState(() {
-            _marsiyaList = List<Map<String, dynamic>>.from(jsonData['data']);
-            _isLoading = false;
-            _currentMax = _itemsPerPage;
-          });
-          // Fetch author details for items where needed.
-          for (var item in _marsiyaList) {
-            if (item['author_id'] == "1" &&
-                (item['manual_author'] == null ||
-                    item['manual_author'].toString().isEmpty)) {
-              if (!_authorCache.containsKey("1")) {
-                fetchAuthor("1");
-              }
-            }
-          }
-        } else {
-          setState(() {
-            _isLoading = false;
-          });
+      // Try to get from cache first
+      final cacheKey = 'marsiya_page_$page';
+      final cachedData = await _cacheManager.getSingleFile(url);
+
+      String responseBody;
+
+      if (cachedData.existsSync() && !isLoadMore) {
+        responseBody = await cachedData.readAsString();
+      } else {
+        final response = await http.get(Uri.parse(url));
+        if (response.statusCode != 200) {
+          throw Exception('Failed to load data');
         }
+        responseBody = response.body;
+
+        // Save to cache
+        await _cacheManager.putFile(
+          url,
+          Uint8List.fromList(responseBody.codeUnits),
+          key: cacheKey,
+          maxAge: const Duration(hours: 2),
+        );
+      }
+
+      final jsonData = json.decode(responseBody);
+
+      if (jsonData['status'] == 'success') {
+        final newData = List<Map<String, dynamic>>.from(jsonData['data']);
+
+        setState(() {
+          if (isLoadMore) {
+            _marsiyaList.addAll(newData);
+          } else {
+            _marsiyaList = newData;
+          }
+
+          _hasMoreData = newData.length == _itemsPerPage;
+          _isLoading = false;
+          _cachedFilteredList = null;
+
+          // Sort according to current tab
+          _sortByCurrentTab();
+        });
+
+        // Batch fetch author details
+        _prefetchAuthorDetails(newData);
       } else {
         setState(() {
           _isLoading = false;
+          _hasMoreData = false;
         });
       }
     } catch (e) {
-      print(e);
+      print('Error fetching marsiya: $e');
       setState(() {
         _isLoading = false;
+        _hasMoreData = false;
       });
+    }
+  }
+
+  // Batch fetch author details for performance
+  Future<void> _prefetchAuthorDetails(List<Map<String, dynamic>> items) async {
+    // Collect unique author IDs that need to be fetched
+    final Set<String> authorIdsToFetch = {};
+
+    for (var item in items) {
+      if (item['author_id'] == "1" &&
+          (item['manual_author'] == null ||
+              item['manual_author'].toString().isEmpty)) {
+        if (!_authorCache.containsKey("1")) {
+          authorIdsToFetch.add("1");
+        }
+      }
+    }
+
+    // Batch fetch authors
+    if (authorIdsToFetch.isNotEmpty) {
+      for (final authorId in authorIdsToFetch) {
+        await fetchAuthor(authorId);
+      }
     }
   }
 
   Future<void> fetchAuthor(String authorId) async {
     final url =
         "https://algodream.in/admin/api/get_author.php?api_key=MOHAMMADASKERYMALIKFROMNOWLARI&author_id=$authorId";
+
     try {
+      // Check cache first
+      final cacheKey = 'author_$authorId';
+      final fileInfo = await _cacheManager.getFileFromCache(cacheKey);
+
+      if (fileInfo != null) {
+        final cachedData = await fileInfo.file.readAsString();
+        final jsonData = json.decode(cachedData);
+        if (jsonData['status'] == 'success') {
+          setState(() {
+            _authorCache[authorId] = jsonData['data']['name'];
+          });
+          return;
+        }
+      }
+
+      // If not in cache, fetch from network
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
         if (jsonData['status'] == 'success') {
+          // Cache the result
+          await _cacheManager.putFile(
+            url,
+            Uint8List.fromList(response.body.codeUnits),
+            key: cacheKey,
+            maxAge: const Duration(days: 7), // Authors change rarely
+          );
+
           setState(() {
             _authorCache[authorId] = jsonData['data']['name'];
           });
         }
       }
     } catch (e) {
-      print(e);
+      print('Error fetching author: $e');
     }
   }
 
   List<Map<String, dynamic>> get filteredMarsiyaList {
+    // Return cached result if available and search query hasn't changed
+    if (_cachedFilteredList != null) return _cachedFilteredList!;
+
     List<Map<String, dynamic>> list = _marsiyaList;
     if (_searchQuery.isNotEmpty) {
       list =
@@ -139,6 +274,9 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
                 authorName.contains(_searchQuery.toLowerCase());
           }).toList();
     }
+
+    // Cache the result
+    _cachedFilteredList = list;
     return list;
   }
 
@@ -165,24 +303,6 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
     );
   }
 
-  // Play the next track from the global playlist.
-  void _playNextTrack() async {
-    if (_globalPlaylist.isNotEmpty &&
-        _globalCurrentIndex < _globalPlaylist.length - 1) {
-      _globalCurrentIndex++;
-      Map<String, dynamic> nextTrack = _globalPlaylist[_globalCurrentIndex];
-      // Directly use the audio URL from the list (assuming it's available)
-      String nextAudioUrl = nextTrack['audio_url'] ?? "";
-      if (nextAudioUrl.isNotEmpty) {
-        await globalAudioPlayer.setAudioSource(
-          AudioSource.uri(Uri.parse(nextAudioUrl)),
-        );
-        await globalAudioPlayer.play();
-        // Optionally, update UI or title details.
-      }
-    }
-  }
-
   @override
   void dispose() {
     _tabController.dispose();
@@ -193,10 +313,7 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
 
   @override
   Widget build(BuildContext context) {
-    List<Map<String, dynamic>> displayedList =
-        _searchQuery.isNotEmpty
-            ? filteredMarsiyaList
-            : filteredMarsiyaList.take(_currentMax).toList();
+    List<Map<String, dynamic>> displayedList = filteredMarsiyaList;
 
     return Scaffold(
       backgroundColor: Colors.teal.shade50,
@@ -209,55 +326,168 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
             Expanded(
               child:
                   _isLoading
-                      ? const Center(child: CircularProgressIndicator())
+                      ? _buildShimmerLoading()
                       : RefreshIndicator(
-                        onRefresh: fetchMarsiya,
-                        child: ListView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.all(16),
-                          itemCount:
-                              displayedList.length +
-                              (displayedList.length <
-                                          filteredMarsiyaList.length &&
-                                      _searchQuery.isEmpty
-                                  ? 1
-                                  : 0),
-                          itemBuilder: (context, index) {
-                            if (index == displayedList.length &&
-                                _searchQuery.isEmpty) {
-                              return const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 16),
-                                child: Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                              );
-                            }
-                            final item = displayedList[index];
-                            return _buildMarsiyaItem(item);
-                          },
-                        ),
+                        onRefresh: () async {
+                          _currentPage = 1;
+                          _hasMoreData = true;
+                          await fetchMarsiya();
+                        },
+                        child:
+                            displayedList.isEmpty
+                                ? _buildEmptyState()
+                                : _buildMarsiyaList(displayedList),
                       ),
             ),
-            // Show the mini-player if a track is playing.
-            if (globalAudioPlayer.playing ||
-                globalAudioPlayer.processingState == ProcessingState.ready)
-              MiniPlayer(
-                currentTrack:
-                    _globalCurrentIndex != -1 && _globalPlaylist.isNotEmpty
-                        ? _globalPlaylist[_globalCurrentIndex]
-                        : null,
-                onPlayPauseToggle: () async {
-                  if (globalAudioPlayer.playing) {
-                    await globalAudioPlayer.pause();
-                  } else {
-                    await globalAudioPlayer.play();
-                  }
-                  setState(() {});
-                },
-                onNext: _playNextTrack,
-              ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildShimmerLoading() {
+    return AnimationLimiter(
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: 6,
+        itemBuilder: (context, index) {
+          return AnimationConfiguration.staggeredList(
+            position: index,
+            duration: const Duration(milliseconds: 500),
+            child: SlideAnimation(
+              verticalOffset: 50.0,
+              child: FadeInAnimation(
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.teal.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 56,
+                        height: 56,
+                        margin: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(28),
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              height: 12,
+                              width: 180,
+                              color: Colors.grey.shade200,
+                              margin: const EdgeInsets.only(bottom: 8),
+                            ),
+                            Container(
+                              height: 12,
+                              width: 100,
+                              color: Colors.grey.shade200,
+                              margin: const EdgeInsets.only(bottom: 8),
+                            ),
+                            Container(
+                              height: 12,
+                              width: 150,
+                              color: Colors.grey.shade200,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.music_note_outlined,
+            size: 80,
+            color: Colors.teal.shade300,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _searchQuery.isEmpty
+                ? "No marsiya audio available"
+                : "No results found for \"$_searchQuery\"",
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.teal.shade700,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (_searchQuery.isNotEmpty)
+            TextButton.icon(
+              icon: Icon(Icons.close, color: Colors.teal.shade600),
+              label: Text(
+                "Clear search",
+                style: TextStyle(color: Colors.teal.shade600),
+              ),
+              onPressed: () {
+                setState(() {
+                  _searchController.clear();
+                  _searchQuery = '';
+                  _cachedFilteredList = null;
+                });
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMarsiyaList(List<Map<String, dynamic>> displayedList) {
+    return AnimationLimiter(
+      child: ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.all(16),
+        itemCount:
+            displayedList.length +
+            (_hasMoreData && _searchQuery.isEmpty ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == displayedList.length && _searchQuery.isEmpty) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: CircularProgressIndicator(color: accentTeal),
+              ),
+            );
+          }
+
+          final item = displayedList[index];
+          return AnimationConfiguration.staggeredList(
+            position: index,
+            duration: const Duration(milliseconds: 500),
+            child: SlideAnimation(
+              verticalOffset: 50.0,
+              child: FadeInAnimation(child: _buildMarsiyaItem(item)),
+            ),
+          );
+        },
       ),
     );
   }
@@ -343,60 +573,65 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
   }
 
   Widget _buildSearchBar() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: TextField(
-        controller: _searchController,
-        onChanged: (value) {
-          setState(() {
-            _searchQuery = value;
-            if (_searchQuery.isEmpty) {
-              _currentMax = _itemsPerPage;
-            }
-          });
-        },
-        style: TextStyle(color: Colors.grey.shade800),
-        decoration: InputDecoration(
-          hintText: 'Search marsiya, author...',
-          hintStyle: TextStyle(color: Colors.grey.shade400),
-          prefixIcon: Icon(Icons.search, color: Colors.teal.shade400, size: 22),
-          suffixIcon:
-              _searchQuery.isNotEmpty
-                  ? IconButton(
-                    icon: Icon(
-                      Icons.close,
-                      color: Colors.grey.shade500,
-                      size: 20,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _searchController.clear();
-                        _searchQuery = '';
-                        _currentMax = _itemsPerPage;
-                      });
-                    },
-                  )
-                  : null,
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(
-            vertical: 12,
-            horizontal: 20,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30),
-            borderSide: BorderSide.none,
+    return Hero(
+      tag: 'searchBar',
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.2),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: TextField(
+          controller: _searchController,
+          onChanged: (value) {
+            setState(() {
+              _searchQuery = value;
+              _cachedFilteredList = null;
+            });
+          },
+          style: TextStyle(color: Colors.grey.shade800),
+          decoration: InputDecoration(
+            hintText: 'Search marsiya, author...',
+            hintStyle: TextStyle(color: Colors.grey.shade400),
+            prefixIcon: Icon(
+              Icons.search,
+              color: Colors.teal.shade400,
+              size: 22,
+            ),
+            suffixIcon:
+                _searchQuery.isNotEmpty
+                    ? IconButton(
+                      icon: Icon(
+                        Icons.close,
+                        color: Colors.grey.shade500,
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _searchController.clear();
+                          _searchQuery = '';
+                          _cachedFilteredList = null;
+                        });
+                      },
+                    )
+                    : null,
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(
+              vertical: 12,
+              horizontal: 20,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(30),
+              borderSide: BorderSide.none,
+            ),
           ),
         ),
       ),
@@ -448,7 +683,7 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
             fontSize: 15,
             fontWeight: FontWeight.w500,
           ),
-          overlayColor: WidgetStateProperty.all(Colors.transparent),
+          overlayColor: MaterialStateProperty.all(Colors.transparent),
           splashFactory: NoSplash.splashFactory,
           padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 3),
           tabs: const [
@@ -467,7 +702,6 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
     );
   }
 
-  // The entire list item is clickable.
   Widget _buildMarsiyaItem(Map<String, dynamic> item) {
     String displayAuthor = "";
     if (item['manual_author'] != null &&
@@ -484,272 +718,222 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
     String duration = item['duration'] ?? "";
     String views = item['views'] ?? "";
 
-    return InkWell(
-      onTap: () {
-        _onItemTap(item);
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _onItemTap(item),
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.teal.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Visual play icon.
-            Container(
-              width: 56,
-              height: 56,
-              margin: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [accentTeal.withOpacity(0.9), accentTeal],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+          child: Ink(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.teal.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: [
-                  BoxShadow(
-                    color: accentTeal.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.play_arrow_rounded,
-                color: Colors.white,
-                size: 32,
-              ),
+              ],
             ),
-            // Content section.
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 12,
-                  horizontal: 8,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    // Title.
-                    Container(
-                      height: 22,
-                      alignment: Alignment.centerRight,
-                      child: Directionality(
-                        textDirection: ui.TextDirection.rtl,
-                        child: Text(
-                          item['title'] ?? '',
-                          style: TextStyle(
-                            color: Colors.grey.shade800,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Visual play icon with ripple effect
+                Hero(
+                  tag: 'play_${item['id']}',
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => _onItemTap(item),
+                      borderRadius: BorderRadius.circular(28),
+                      child: Ink(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [accentTeal.withOpacity(0.9), accentTeal],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
+                          borderRadius: BorderRadius.circular(28),
+                          boxShadow: [
+                            BoxShadow(
+                              color: accentTeal.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.play_arrow_rounded,
+                            color: Colors.white,
+                            size: 32,
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    // Author row.
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Content section with improved layout
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 4,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          displayAuthor,
-                          style: TextStyle(
-                            color: Colors.teal.shade700,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
+                        // Title with improved text styling
+                        Container(
+                          alignment: Alignment.centerRight,
+                          child: Directionality(
+                            textDirection: ui.TextDirection.rtl,
+                            child: Text(
+                              item['title'] ?? '',
+                              style: const TextStyle(
+                                color: Color(0xFF2D3A3A),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                letterSpacing: 0.2,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.person,
-                          size: 14,
-                          color: Colors.teal.shade400,
+                        const SizedBox(height: 6),
+                        // Author row with improved styling
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              displayAuthor,
+                              style: TextStyle(
+                                color: Colors.teal.shade700,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                letterSpacing: 0.1,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.person,
+                              size: 14,
+                              color: Colors.teal.shade400,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        // Details row with elegant styling
+                        Container(
+                          alignment: Alignment.centerRight,
+                          child: Wrap(
+                            alignment: WrapAlignment.end,
+                            spacing: 12,
+                            runSpacing: 4,
+                            children: [
+                              _buildInfoChip(
+                                Icons.calendar_today,
+                                formattedDate,
+                                Colors.grey.shade500,
+                              ),
+                              _buildInfoChip(
+                                Icons.visibility_outlined,
+                                views,
+                                Colors.teal.shade500,
+                              ),
+                              _buildInfoChip(
+                                Icons.access_time,
+                                duration,
+                                Colors.teal.shade500,
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    // Details row.
-                    Wrap(
-                      alignment: WrapAlignment.end,
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              formattedDate,
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.calendar_today,
-                              size: 12,
-                              color: Colors.grey.shade500,
-                            ),
-                          ],
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              views,
-                              style: TextStyle(
-                                color: Colors.teal.shade700,
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.visibility_outlined,
-                              size: 14,
-                              color: Colors.teal.shade500,
-                            ),
-                          ],
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              duration,
-                              style: TextStyle(
-                                color: Colors.teal.shade700,
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.access_time,
-                              size: 14,
-                              color: Colors.teal.shade500,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+                // Right side indicator
+                Container(
+                  width: 6,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: accentTeal.withOpacity(0.7),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(3),
+                      bottomLeft: Radius.circular(3),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
+
+  Widget _buildInfoChip(IconData icon, String text, Color iconColor) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          text,
+          style: TextStyle(
+            color: Colors.grey.shade700,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Icon(icon, size: 14, color: iconColor),
+      ],
+    );
+  }
 }
 
-// MiniPlayer widget that displays a seekbar, play/pause and next controls.
-class MiniPlayer extends StatefulWidget {
-  final Map<String, dynamic>? currentTrack;
-  final VoidCallback onPlayPauseToggle;
-  final VoidCallback onNext;
-  const MiniPlayer({
-    super.key,
-    required this.currentTrack,
-    required this.onPlayPauseToggle,
-    required this.onNext,
-  });
+class SkeletonAnimation extends StatefulWidget {
+  final Widget child;
+  const SkeletonAnimation({Key? key, required this.child}) : super(key: key);
 
   @override
-  State<MiniPlayer> createState() => _MiniPlayerState();
+  _SkeletonAnimationState createState() => _SkeletonAnimationState();
 }
 
-class _MiniPlayerState extends State<MiniPlayer> {
-  Duration _position = Duration.zero;
-  Duration _duration = Duration.zero;
+class _SkeletonAnimationState extends State<SkeletonAnimation>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
 
   @override
   void initState() {
     super.initState();
-    // Listen to the global player's streams.
-    globalAudioPlayer.positionStream.listen((p) {
-      setState(() {
-        _position = p;
-      });
-    });
-    globalAudioPlayer.durationStream.listen((d) {
-      setState(() {
-        _duration = d ?? Duration.zero;
-      });
-    });
-    // When the track completes, trigger onNext.
-    globalAudioPlayer.playerStateStream.listen((state) {
-      if (state.processingState == ProcessingState.completed) {
-        widget.onNext();
-      }
-    });
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    )..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0.3, end: 0.8).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    String title =
-        widget.currentTrack != null
-            ? widget.currentTrack!['title'] ?? 'Playing'
-            : 'Playing';
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Title and controls row.
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              IconButton(
-                onPressed: widget.onPlayPauseToggle,
-                icon: Icon(
-                  globalAudioPlayer.playing ? Icons.pause : Icons.play_arrow,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-              IconButton(
-                onPressed: widget.onNext,
-                icon: Icon(
-                  Icons.skip_next,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-            ],
-          ),
-          // Seekbar.
-          Slider(
-            value: _position.inSeconds.toDouble(),
-            max:
-                _duration.inSeconds.toDouble() > 0
-                    ? _duration.inSeconds.toDouble()
-                    : 1.0,
-            onChanged: (value) async {
-              await globalAudioPlayer.seek(Duration(seconds: value.toInt()));
-            },
-          ),
-        ],
-      ),
+    return AnimatedBuilder(
+      animation: _animation,
+      builder:
+          (context, child) =>
+              Opacity(opacity: _animation.value, child: widget.child),
     );
   }
 }

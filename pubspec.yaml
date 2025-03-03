@@ -24,6 +24,10 @@ dependencies:
   permission_handler: ^11.0.0
   flutter_svg: ^2.0.7 
   syncfusion_flutter_pdfviewer: ^20.4.54
+  flutter_staggered_animations: ^1.1.1
+  typed_data: ^1.3.0  # For Uint8List
+  share_plus: ^7.0.2
+  fluttertoast: ^8.0.9
 
 
 

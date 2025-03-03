@@ -1,137 +1,911 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
-class FullMarsiyaScreen extends StatelessWidget {
+class FullMarsiyaScreen extends StatefulWidget {
   const FullMarsiyaScreen({super.key});
-
   static const Color accentTeal = Color(0xFF008F41);
+  static const Color bgColor = Color(0xFFF5F7FA);
+  @override
+  State<FullMarsiyaScreen> createState() => _FullMarsiyaScreenState();
+}
 
-  final List<Map<String, String>> marsiyaList = const [
-    {
-      'title': 'مضمون تربة',
-      'author': 'Nadeem Sarwar',
-      'duration': '5:23',
-      'views': '12.5K',
-      'language': 'Urdu',
-      'type': 'both',
-      'hasDownload': 'true',
-    },
-    {
-      'title': 'مضمون آرام مدح',
-      'author': 'Ali Shanawar',
-      'duration': '5:57',
-      'views': '20.1K',
-      'language': 'Urdu',
-      'type': 'both',
-      'hasDownload': 'true',
-    },
-  ];
+class _FullMarsiyaScreenState extends State<FullMarsiyaScreen>
+    with SingleTickerProviderStateMixin {
+  final String apiUrl =
+      "https://algodream.in/admin/api/get_full_marsiya_pdf.php?api_key=MOHAMMADASKERYMALIKFROMNOWLARI";
+  bool _isLoading = true;
+  bool _isError = false;
+  String _errorMessage = '';
+  List<dynamic> _pdfList = [];
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  late TabController _tabController;
+  final ScrollController _scrollController = ScrollController();
+  bool _isRefreshing = false;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.teal.shade50,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.teal.shade50,
-        title: const Text(
-          'مکمل مرثیہ - Full Marsiya',
-          style: TextStyle(
-            color: accentTeal,
-            fontWeight: FontWeight.bold,
-            fontSize: 24,
+  void initState() {
+    super.initState();
+    fetchPdfList();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text;
+      });
+    });
+    _tabController = TabController(length: 2, vsync: this);
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels < -100 && !_isRefreshing) {
+      setState(() {
+        _isRefreshing = true;
+      });
+      fetchPdfList().then((_) {
+        setState(() {
+          _isRefreshing = false;
+        });
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _tabController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> fetchPdfList() async {
+    setState(() {
+      _isLoading = true;
+      _isError = false;
+    });
+    try {
+      final response = await http.get(Uri.parse(apiUrl));
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        if (jsonData['status'] == 'success') {
+          setState(() {
+            _pdfList = jsonData['data'];
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _isLoading = false;
+            _isError = true;
+            _errorMessage = jsonData['message'] ?? 'Failed to load data';
+          });
+        }
+      } else {
+        setState(() {
+          _isLoading = false;
+          _isError = true;
+          _errorMessage = 'Server error: ${response.statusCode}';
+        });
+      }
+    } catch (e) {
+      print("Error fetching PDFs: $e");
+      setState(() {
+        _isLoading = false;
+        _isError = true;
+        _errorMessage = 'Network error: $e';
+      });
+    }
+  }
+
+  // Filter the list based on the search query
+  List<dynamic> get filteredPdfList {
+    if (_searchQuery.isEmpty) return _pdfList;
+    return _pdfList.where((item) {
+      final title = item['title']?.toString().toLowerCase() ?? "";
+      final author =
+          (item['manual_author'] ?? item['author_name'] ?? "")
+              .toString()
+              .toLowerCase();
+      return title.contains(_searchQuery.toLowerCase()) ||
+          author.contains(_searchQuery.toLowerCase());
+    }).toList();
+  }
+
+  // Return list sorted by uploaded_date in descending order
+  List<dynamic> get recentlyUploadedPdfList {
+    List<dynamic> list = List.from(filteredPdfList);
+    list.sort((a, b) {
+      DateTime dateA =
+          DateTime.tryParse(a['uploaded_date'] ?? "") ?? DateTime(1970);
+      DateTime dateB =
+          DateTime.tryParse(b['uploaded_date'] ?? "") ?? DateTime(1970);
+      return dateB.compareTo(dateA);
+    });
+    return list;
+  }
+
+  // Format the uploaded date string
+  String formatDate(String dateStr) {
+    try {
+      DateTime dt = DateTime.parse(dateStr);
+      return "${dt.day}/${dt.month}/${dt.year} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}";
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
+  // Handle tap on a PDF item
+  void _onItemTap(Map<String, dynamic> item) {
+    if (item['pdf_url'] != null && item['pdf_url'].toString().isNotEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => PdfViewerScreen(
+                pdfUrl: item['pdf_url'],
+                title: item['title'] ?? 'PDF Viewer',
+              ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('PDF not available'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Build the search bar
+  Widget _buildSearchBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: accentTeal, size: 28),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        ],
       ),
-      body: SafeArea(
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: marsiyaList.length,
-          itemBuilder: (context, index) {
-            final item = marsiyaList[index];
-            return _buildMarsiyaItem(item);
-          },
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Search by title or author...',
+          prefixIcon: const Icon(
+            Icons.search,
+            color: FullMarsiyaScreen.accentTeal,
+          ),
+          suffixIcon:
+              _searchQuery.isNotEmpty
+                  ? IconButton(
+                    icon: const Icon(
+                      Icons.clear,
+                      color: FullMarsiyaScreen.accentTeal,
+                    ),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() {
+                        _searchQuery = '';
+                      });
+                    },
+                  )
+                  : null,
+          filled: true,
+          fillColor: Colors.grey.shade50,
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 12,
+            horizontal: 20,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: BorderSide(color: Colors.grey.shade200),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: const BorderSide(
+              color: FullMarsiyaScreen.accentTeal,
+              width: 1.5,
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildMarsiyaItem(Map<String, String> item) {
+  // A shimmer loading effect for list items
+  Widget _buildShimmerLoading() {
+    return AnimationLimiter(
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: 6,
+        itemBuilder: (context, index) {
+          return AnimationConfiguration.staggeredList(
+            position: index,
+            duration: const Duration(milliseconds: 500),
+            child: SlideAnimation(
+              verticalOffset: 50.0,
+              child: FadeInAnimation(
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.shade200,
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(16),
+                    leading: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            FullMarsiyaScreen.accentTeal,
+                            FullMarsiyaScreen.accentTeal.withOpacity(0.7),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    title: Container(
+                      height: 20,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 12),
+                        Container(
+                          height: 16,
+                          width: 150,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          height: 16,
+                          width: 100,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // Build a single PDF list item
+  Widget _buildMarsiyaItem(Map<String, dynamic> item) {
+    String displayAuthor = "";
+    if (item['manual_author'] != null &&
+        item['manual_author'].toString().isNotEmpty) {
+      displayAuthor = item['manual_author'];
+    } else if (item['author_id'] != null &&
+        item['author_id'].toString() == "1") {
+      displayAuthor = item['author_name'] ?? "Askery";
+    } else {
+      displayAuthor = item['author_name'] ?? "Unknown";
+    }
+
+    String displayTitle = item['title']?.toString() ?? '';
+    if (displayTitle.isEmpty) {
+      displayTitle = "Untitled Marsiya";
+    }
+
+    String formattedDate = formatDate(item['uploaded_date'] ?? "");
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.shade300,
-            blurRadius: 6,
-            offset: const Offset(2, 2),
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: ListTile(
-        leading: Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [accentTeal, accentTeal.withOpacity(0.8)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _onItemTap(item),
+            splashColor: FullMarsiyaScreen.accentTeal.withOpacity(0.1),
+            highlightColor: FullMarsiyaScreen.accentTeal.withOpacity(0.05),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // PDF Icon with animated hover effect
+                  Hero(
+                    tag: 'pdf_icon_${item['id'] ?? DateTime.now().toString()}',
+                    child: Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            FullMarsiyaScreen.accentTeal,
+                            const Color(0xFF006D2E),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: FullMarsiyaScreen.accentTeal.withOpacity(
+                              0.3,
+                            ),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.picture_as_pdf,
+                          color: Colors.white,
+                          size: 30,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Content section
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          displayTitle,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: Color(0xFF2D3748),
+                            height: 1.3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 8),
+                        // Author section with icon
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.person,
+                              size: 16,
+                              color: FullMarsiyaScreen.accentTeal,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                displayAuthor != "null"
+                                    ? displayAuthor
+                                    : "Unknown",
+                                style: TextStyle(
+                                  color: Colors.grey.shade700,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        // Date section with icon
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.calendar_today,
+                              size: 16,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              formattedDate,
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Arrow icon
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.arrow_forward_ios,
+                      color: FullMarsiyaScreen.accentTeal,
+                      size: 18,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(Icons.library_books, color: Colors.white, size: 24),
         ),
-        title: Text(
-          item['title'] ?? '',
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-          textDirection: TextDirection.rtl,
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      ),
+    );
+  }
+
+  Widget _buildErrorView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const SizedBox(height: 8),
+            Icon(Icons.error_outline, color: Colors.red.shade400, size: 80),
+            const SizedBox(height: 16),
             Text(
-              'By ${item['author'] ?? ''}',
-              style: TextStyle(color: Colors.grey[700], fontSize: 14),
+              "Oops! Something went wrong",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade800,
+              ),
             ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.access_time, size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(
-                  item['duration'] ?? '',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+            const SizedBox(height: 12),
+            Text(
+              _errorMessage,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: fetchPdfList,
+              icon: const Icon(Icons.refresh),
+              label: const Text("Try Again"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: FullMarsiyaScreen.accentTeal,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
                 ),
-                const SizedBox(width: 16),
-                const Icon(
-                  Icons.visibility_outlined,
-                  size: 16,
-                  color: Colors.grey,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  item['views'] ?? '',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                ),
-              ],
+              ),
             ),
           ],
         ),
-        trailing: IconButton(
-          icon: const Icon(
-            Icons.play_arrow_rounded,
-            color: accentTeal,
-            size: 32,
+      ),
+    );
+  }
+
+  Widget _buildEmptyListView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, color: Colors.grey.shade400, size: 80),
+          const SizedBox(height: 16),
+          Text(
+            _searchQuery.isNotEmpty
+                ? "No matching results found"
+                : "No PDFs available",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade800,
+            ),
           ),
-          onPressed: () {},
+          const SizedBox(height: 12),
+          Text(
+            _searchQuery.isNotEmpty
+                ? "Try adjusting your search criteria"
+                : "Check back later for new content",
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+          if (_searchQuery.isNotEmpty) const SizedBox(height: 24),
+          if (_searchQuery.isNotEmpty)
+            ElevatedButton.icon(
+              onPressed: () {
+                _searchController.clear();
+                setState(() {
+                  _searchQuery = '';
+                });
+              },
+              icon: const Icon(Icons.clear),
+              label: const Text("Clear Search"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: FullMarsiyaScreen.accentTeal,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRefreshIndicator() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      height: _isRefreshing ? 80 : 0,
+      child: Center(
+        child:
+            _isRefreshing
+                ? Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          FullMarsiyaScreen.accentTeal,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      "Refreshing...",
+                      style: TextStyle(
+                        color: FullMarsiyaScreen.accentTeal,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                )
+                : const SizedBox.shrink(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: FullMarsiyaScreen.bgColor,
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.white,
+        title: const FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            children: [
+              Text(
+                'مکمل مرثیہ',
+                style: TextStyle(
+                  color: FullMarsiyaScreen.accentTeal,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 24,
+                ),
+              ),
+              SizedBox(width: 8),
+              Text(
+                '- Full Marsiya PDF',
+                style: TextStyle(
+                  color: Color(0xFF2D3748),
+                  fontWeight: FontWeight.w500,
+                  fontSize: 18,
+                ),
+              ),
+            ],
+          ),
         ),
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back,
+            color: FullMarsiyaScreen.accentTeal,
+            size: 28,
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: FullMarsiyaScreen.accentTeal,
+          indicatorWeight: 3,
+          labelColor: FullMarsiyaScreen.accentTeal,
+          unselectedLabelColor: Colors.grey.shade600,
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+          tabs: const [Tab(text: 'All PDFs'), Tab(text: 'Recently Uploaded')],
+        ),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Search bar
+            _buildSearchBar(),
+            // Pull-to-refresh indicator
+            _buildRefreshIndicator(),
+            // Main content
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // All PDFs tab
+                  _isLoading
+                      ? _buildShimmerLoading()
+                      : _isError
+                      ? _buildErrorView()
+                      : filteredPdfList.isEmpty
+                      ? _buildEmptyListView()
+                      : RefreshIndicator(
+                        onRefresh: fetchPdfList,
+                        color: FullMarsiyaScreen.accentTeal,
+                        child: AnimationLimiter(
+                          child: ListView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.all(16),
+                            physics: const AlwaysScrollableScrollPhysics(
+                              parent: BouncingScrollPhysics(),
+                            ),
+                            itemCount: filteredPdfList.length,
+                            itemBuilder: (context, index) {
+                              final item = filteredPdfList[index];
+                              return AnimationConfiguration.staggeredList(
+                                position: index,
+                                duration: const Duration(milliseconds: 500),
+                                child: SlideAnimation(
+                                  verticalOffset: 50.0,
+                                  child: FadeInAnimation(
+                                    child: _buildMarsiyaItem(item),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                  // Recently uploaded tab
+                  _isLoading
+                      ? _buildShimmerLoading()
+                      : _isError
+                      ? _buildErrorView()
+                      : recentlyUploadedPdfList.isEmpty
+                      ? _buildEmptyListView()
+                      : RefreshIndicator(
+                        onRefresh: fetchPdfList,
+                        color: FullMarsiyaScreen.accentTeal,
+                        child: AnimationLimiter(
+                          child: ListView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.all(16),
+                            physics: const AlwaysScrollableScrollPhysics(
+                              parent: BouncingScrollPhysics(),
+                            ),
+                            itemCount: recentlyUploadedPdfList.length,
+                            itemBuilder: (context, index) {
+                              final item = recentlyUploadedPdfList[index];
+                              return AnimationConfiguration.staggeredList(
+                                position: index,
+                                duration: const Duration(milliseconds: 500),
+                                child: SlideAnimation(
+                                  verticalOffset: 50.0,
+                                  child: FadeInAnimation(
+                                    child: _buildMarsiyaItem(item),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class PdfViewerScreen extends StatefulWidget {
+  final String pdfUrl;
+  final String title;
+
+  const PdfViewerScreen({Key? key, required this.pdfUrl, required this.title})
+    : super(key: key);
+
+  @override
+  State<PdfViewerScreen> createState() => _PdfViewerScreenState();
+}
+
+class _PdfViewerScreenState extends State<PdfViewerScreen> {
+  late PdfViewerController _pdfViewerController;
+  int _currentPage = 0;
+  int _totalPages = 0;
+  bool _isInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _pdfViewerController = PdfViewerController();
+
+    // Show in-app notification when PDF is opened
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showInAppNotification();
+    });
+  }
+
+  void _showInAppNotification() {
+    Fluttertoast.showToast(
+      msg: "This PDF is available exclusively in this app",
+      toastLength: Toast.LENGTH_LONG,
+      gravity: ToastGravity.TOP,
+      backgroundColor: FullMarsiyaScreen.accentTeal,
+      textColor: Colors.white,
+      fontSize: 16.0,
+    );
+  }
+
+  void _sharePdf() {
+    Share.share(
+      'Check out this amazing Marsiya: ${widget.title}. Available exclusively in our app!',
+      subject: 'Sharing Marsiya PDF: ${widget.title}',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          widget.title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+        backgroundColor: FullMarsiyaScreen.accentTeal,
+        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share),
+            onPressed: _sharePdf,
+            tooltip: 'Share',
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          SfPdfViewer.network(
+            widget.pdfUrl,
+            controller: _pdfViewerController,
+            canShowPaginationDialog: true,
+            canShowScrollHead: true,
+            canShowScrollStatus: true,
+            enableTextSelection: true,
+            pageLayoutMode: PdfPageLayoutMode.continuous,
+            onDocumentLoaded: (PdfDocumentLoadedDetails details) {
+              setState(() {
+                _totalPages = details.document.pages.count;
+                _isInitialized = true;
+              });
+            },
+            onPageChanged: (PdfPageChangedDetails details) {
+              setState(() {
+                _currentPage = details.newPageNumber;
+              });
+            },
+          ),
+          if (_isInitialized)
+            Positioned(
+              bottom: 20,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Page $_currentPage of $_totalPages',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton.small(
+            onPressed: () {
+              if (_currentPage > 1) {
+                _pdfViewerController.previousPage();
+              }
+            },
+            backgroundColor: FullMarsiyaScreen.accentTeal,
+            foregroundColor: Colors.white,
+            heroTag: 'prevPage',
+            child: const Icon(Icons.arrow_upward),
+          ),
+          const SizedBox(height: 8),
+          FloatingActionButton.small(
+            onPressed: () {
+              if (_currentPage < _totalPages) {
+                _pdfViewerController.nextPage();
+              }
+            },
+            backgroundColor: FullMarsiyaScreen.accentTeal,
+            foregroundColor: Colors.white,
+            heroTag: 'nextPage',
+            child: const Icon(Icons.arrow_downward),
+          ),
+          const SizedBox(height: 8),
+          FloatingActionButton(
+            onPressed: () {
+              _pdfViewerController.zoomLevel = 1.5;
+            },
+            backgroundColor: FullMarsiyaScreen.accentTeal,
+            foregroundColor: Colors.white,
+            heroTag: 'zoom',
+            child: const Icon(Icons.zoom_in),
+          ),
+        ],
       ),
     );
   }
