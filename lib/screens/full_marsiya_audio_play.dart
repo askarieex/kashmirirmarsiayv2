@@ -6,8 +6,10 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:marquee/marquee.dart';
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 
 // Import the persistent mini player notifier.
 import '../widgets/persistent_mini_player.dart';
@@ -796,10 +798,35 @@ class LyricsTab extends StatefulWidget {
 class _LyricsTabState extends State<LyricsTab>
     with AutomaticKeepAliveClientMixin {
   bool _isLoading = true;
+  String? _localPdfPath;
+
   @override
   void initState() {
     super.initState();
-    if (widget.pdfUrl == null || widget.pdfUrl!.isEmpty) _isLoading = false;
+    if (widget.pdfUrl != null) {
+      _loadPdf(widget.pdfUrl!);
+    } else {
+      _isLoading = false;
+    }
+  }
+
+  Future<void> _loadPdf(String url) async {
+    try {
+      final response = await http.get(Uri.parse(url));
+      final bytes = response.bodyBytes;
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/lyrics.pdf');
+      await file.writeAsBytes(bytes);
+      setState(() {
+        _localPdfPath = file.path;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading PDF: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -807,38 +834,46 @@ class _LyricsTabState extends State<LyricsTab>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    if (widget.pdfUrl == null || widget.pdfUrl!.isEmpty) return _noPdf();
+    if (widget.pdfUrl == null) {
+      return _noPdf();
+    }
+
     return Stack(
       children: [
-        Column(
-          children: [
-            const SizedBox(height: 10),
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      spreadRadius: 2,
-                    ),
-                  ],
+        AnimatedOpacity(
+          opacity: _isLoading ? 0.0 : 1.0,
+          duration: const Duration(milliseconds: 500),
+          child: Container(
+            margin: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  spreadRadius: 2,
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: SfPdfViewer.network(
-                    widget.pdfUrl!,
-                    onDocumentLoaded: (_) => setState(() => _isLoading = false),
-                    onDocumentLoadFailed:
-                        (_) => setState(() => _isLoading = false),
-                  ),
-                ),
-              ),
+              ],
             ),
-          ],
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child:
+                  _localPdfPath != null
+                      ? PDFView(
+                        filePath: _localPdfPath!,
+                        enableSwipe: true,
+                        swipeHorizontal: false,
+                        autoSpacing: true,
+                        pageFling: true,
+                        onRender: (_) => setState(() => _isLoading = false),
+                        onError: (error) {
+                          print(error);
+                          setState(() => _isLoading = false);
+                        },
+                      )
+                      : Container(color: Colors.white),
+            ),
+          ),
         ),
         if (_isLoading) const Center(child: CircularProgressIndicator()),
         Positioned(
@@ -849,11 +884,14 @@ class _LyricsTabState extends State<LyricsTab>
             child: InkWell(
               borderRadius: BorderRadius.circular(20),
               onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => FullScreenPdfViewer(pdfUrl: widget.pdfUrl!),
-                  ),
-                );
+                if (_localPdfPath != null) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder:
+                          (_) => FullScreenPdfViewer(pdfPath: _localPdfPath!),
+                    ),
+                  );
+                }
               },
               child: Container(
                 padding: const EdgeInsets.all(6),
@@ -927,16 +965,27 @@ class _LyricsTabState extends State<LyricsTab>
 }
 
 class FullScreenPdfViewer extends StatelessWidget {
-  final String pdfUrl;
-  const FullScreenPdfViewer({Key? key, required this.pdfUrl}) : super(key: key);
+  final String pdfPath;
+
+  const FullScreenPdfViewer({Key? key, required this.pdfPath})
+    : super(key: key);
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text("PDF Full Screen"),
-      backgroundColor: Theme.of(context).colorScheme.primary,
-    ),
-    body: SfPdfViewer.network(pdfUrl),
-  );
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+      ),
+      body: PDFView(
+        filePath: pdfPath,
+        enableSwipe: true,
+        swipeHorizontal: false,
+        autoSpacing: true,
+        pageFling: true,
+      ),
+    );
+  }
 }
 
 extension LetExtension on DateTime {

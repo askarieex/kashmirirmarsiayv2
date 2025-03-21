@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 
 class IntikhaabScreen extends StatefulWidget {
   const IntikhaabScreen({super.key});
@@ -771,20 +773,41 @@ class PdfViewerScreen extends StatefulWidget {
 }
 
 class _PdfViewerScreenState extends State<PdfViewerScreen> {
-  late PdfViewerController _pdfViewerController;
+  late PDFViewController _pdfViewController;
   int _currentPage = 0;
   int _totalPages = 0;
   bool _isInitialized = false;
+  bool _isLoading = true;
+  String? _localPath;
 
   @override
   void initState() {
     super.initState();
-    _pdfViewerController = PdfViewerController();
+    _loadPdf();
 
     // Show in-app notification when PDF is opened
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showInAppNotification();
     });
+  }
+
+  Future<void> _loadPdf() async {
+    try {
+      final response = await http.get(Uri.parse(widget.pdfUrl));
+      final bytes = response.bodyBytes;
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/document.pdf');
+      await file.writeAsBytes(bytes);
+      setState(() {
+        _localPath = file.path;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading PDF: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   void _showInAppNotification() {
@@ -800,8 +823,8 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
 
   void _sharePdf() {
     Share.share(
-      'Check out this amazing short Marsiya: ${widget.title}. Available exclusively in our app!',
-      subject: 'Sharing Short Marsiya PDF: ${widget.title}',
+      'Check out this amazing Marsiya: ${widget.title}. Available exclusively in our app!',
+      subject: 'Sharing Marsiya PDF: ${widget.title}',
     );
   }
 
@@ -830,26 +853,34 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
       ),
       body: Stack(
         children: [
-          SfPdfViewer.network(
-            widget.pdfUrl,
-            controller: _pdfViewerController,
-            canShowPaginationDialog: true,
-            canShowScrollHead: true,
-            canShowScrollStatus: true,
-            enableTextSelection: true,
-            pageLayoutMode: PdfPageLayoutMode.continuous,
-            onDocumentLoaded: (PdfDocumentLoadedDetails details) {
-              setState(() {
-                _totalPages = details.document.pages.count;
-                _isInitialized = true;
-              });
-            },
-            onPageChanged: (PdfPageChangedDetails details) {
-              setState(() {
-                _currentPage = details.newPageNumber;
-              });
-            },
-          ),
+          if (_isLoading)
+            const Center(child: CircularProgressIndicator())
+          else if (_localPath != null)
+            PDFView(
+              filePath: _localPath!,
+              enableSwipe: true,
+              swipeHorizontal: false,
+              autoSpacing: true,
+              pageFling: true,
+              onRender: (pages) {
+                setState(() {
+                  _totalPages = pages!;
+                  _isInitialized = true;
+                });
+              },
+              onViewCreated: (PDFViewController controller) {
+                _pdfViewController = controller;
+              },
+              onPageChanged: (int? page, int? total) {
+                if (page != null) {
+                  setState(() {
+                    _currentPage = page + 1;
+                  });
+                }
+              },
+            )
+          else
+            const Center(child: Text('Failed to load PDF')),
           if (_isInitialized)
             Positioned(
               bottom: 20,
@@ -877,44 +908,48 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
             ),
         ],
       ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FloatingActionButton.small(
-            onPressed: () {
-              if (_currentPage > 1) {
-                _pdfViewerController.previousPage();
-              }
-            },
-            backgroundColor: IntikhaabScreen.accentTeal,
-            foregroundColor: Colors.white,
-            heroTag: 'prevPage',
-            child: const Icon(Icons.arrow_upward),
-          ),
-          const SizedBox(height: 8),
-          FloatingActionButton.small(
-            onPressed: () {
-              if (_currentPage < _totalPages) {
-                _pdfViewerController.nextPage();
-              }
-            },
-            backgroundColor: IntikhaabScreen.accentTeal,
-            foregroundColor: Colors.white,
-            heroTag: 'nextPage',
-            child: const Icon(Icons.arrow_downward),
-          ),
-          const SizedBox(height: 8),
-          FloatingActionButton(
-            onPressed: () {
-              _pdfViewerController.zoomLevel = 1.5;
-            },
-            backgroundColor: IntikhaabScreen.accentTeal,
-            foregroundColor: Colors.white,
-            heroTag: 'zoom',
-            child: const Icon(Icons.zoom_in),
-          ),
-        ],
-      ),
+      floatingActionButton:
+          _isInitialized
+              ? Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FloatingActionButton.small(
+                    onPressed: () {
+                      if (_currentPage > 1) {
+                        _pdfViewController.setPage(_currentPage - 2);
+                      }
+                    },
+                    backgroundColor: IntikhaabScreen.accentTeal,
+                    foregroundColor: Colors.white,
+                    heroTag: 'prevPage',
+                    child: const Icon(Icons.arrow_upward),
+                  ),
+                  const SizedBox(height: 8),
+                  FloatingActionButton.small(
+                    onPressed: () {
+                      if (_currentPage < _totalPages) {
+                        _pdfViewController.setPage(_currentPage);
+                      }
+                    },
+                    backgroundColor: IntikhaabScreen.accentTeal,
+                    foregroundColor: Colors.white,
+                    heroTag: 'nextPage',
+                    child: const Icon(Icons.arrow_downward),
+                  ),
+                  const SizedBox(height: 8),
+                  FloatingActionButton(
+                    onPressed: () {
+                      // Zoom not directly supported in flutter_pdfview
+                      // We can implement custom zoom in future
+                    },
+                    backgroundColor: IntikhaabScreen.accentTeal,
+                    foregroundColor: Colors.white,
+                    heroTag: 'zoom',
+                    child: const Icon(Icons.zoom_in),
+                  ),
+                ],
+              )
+              : null,
     );
   }
 }

@@ -11,23 +11,24 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  http: ^0.13.6
-  google_fonts: ^2.3.3
+  http: ^1.1.0
+  google_fonts: ^5.1.0
   cached_network_image: ^3.2.3
-  shimmer: ^2.0.0
+  shimmer: ^3.0.0
   url_launcher: ^6.1.5
   marquee: ^2.2.3
-  intl: ^0.17.0
+  intl: ^0.18.1
   just_audio: ^0.9.34
   just_audio_background: ^0.0.1-beta.10
   audio_session: ^0.1.6
   permission_handler: ^11.0.0
   flutter_svg: ^2.0.7 
-  syncfusion_flutter_pdfviewer: ^20.4.54
   flutter_staggered_animations: ^1.1.1
   typed_data: ^1.3.0  # For Uint8List
   share_plus: ^7.0.2
   fluttertoast: ^8.0.9
+  flutter_pdfview: ^1.4.0
+  path_provider: ^2.1.5
 
 
 
