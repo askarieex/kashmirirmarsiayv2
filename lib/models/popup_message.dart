@@ -3,15 +3,15 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class PopupMessage {
-  final String message;
   final bool display;
+  final String message;
 
-  PopupMessage({required this.message, required this.display});
+  PopupMessage({required this.display, required this.message});
 
   factory PopupMessage.fromJson(Map<String, dynamic> json) {
     return PopupMessage(
+      display: json['display'] ?? false,
       message: json['message'] ?? '',
-      display: json['display'] == 1 ? true : false,
     );
   }
 

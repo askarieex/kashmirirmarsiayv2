@@ -115,7 +115,10 @@ class _SponsoredAdBannerState extends State<SponsoredAdBanner>
                 ),
                 const SizedBox(width: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.orange.shade700,
                     borderRadius: BorderRadius.circular(4),
@@ -168,125 +171,114 @@ class _SponsoredAdBannerState extends State<SponsoredAdBanner>
                 final item = widget.adItems[index];
                 return Container(
                   margin: const EdgeInsets.only(right: 8),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        spreadRadius: 0,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Stack(
-                      children: [
-                        // Ad Image
-                        Positioned.fill(
-                          child: CachedNetworkImage(
-                            imageUrl: item.imageUrl,
-                            fit: BoxFit.cover,
-                            placeholder:
-                                (context, url) => Container(
-                                  color: Colors.grey.shade200,
-                                  child: Center(
-                                    child: CircularProgressIndicator(
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        Theme.of(context).colorScheme.primary,
+                  child: HoverableAdCard(
+                    onTap: () => item.onTap?.call(),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Stack(
+                        children: [
+                          // Ad Image
+                          Positioned.fill(
+                            child: CachedNetworkImage(
+                              imageUrl: item.imageUrl,
+                              fit: BoxFit.cover,
+                              placeholder:
+                                  (context, url) => Container(
+                                    color: Colors.grey.shade200,
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.primary,
+                                            ),
+                                        strokeWidth: 2,
                                       ),
-                                      strokeWidth: 2,
                                     ),
                                   ),
-                                ),
-                            errorWidget:
-                                (context, url, error) => Container(
-                                  color: Colors.grey.shade200,
-                                  child: const Icon(
-                                    Icons.error,
-                                    color: Colors.red,
+                              errorWidget:
+                                  (context, url, error) => Container(
+                                    color: Colors.grey.shade200,
+                                    child: const Icon(
+                                      Icons.error,
+                                      color: Colors.red,
+                                    ),
                                   ),
-                                ),
-                          ),
-                        ),
-                        // Gradient overlay
-                        Positioned.fill(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  Colors.black.withOpacity(0.7),
-                                ],
-                                stops: const [0.6, 1.0],
-                              ),
                             ),
                           ),
-                        ),
-                        // Ad Content
-                        Positioned(
-                          left: 16,
-                          right: 16,
-                          bottom: 16,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                item.title,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  shadows: [
-                                    Shadow(
-                                      offset: Offset(0, 1),
-                                      blurRadius: 3,
-                                      color: Colors.black45,
-                                    ),
+                          // Gradient overlay
+                          Positioned.fill(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.transparent,
+                                    Colors.black.withOpacity(0.7),
                                   ],
+                                  stops: const [0.6, 1.0],
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                               ),
-                              if (item.description != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 2),
-                                  child: Text(
-                                    item.description!,
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.9),
-                                      fontSize: 12,
-                                      shadows: const [
-                                        Shadow(
-                                          offset: Offset(0, 1),
-                                          blurRadius: 2,
-                                          color: Colors.black38,
-                                        ),
-                                      ],
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        // Clickable area
-                        Positioned.fill(
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              splashColor: Colors.white24,
-                              highlightColor: Colors.white10,
-                              onTap: () => item.onTap?.call(),
                             ),
                           ),
-                        ),
-                      ],
+                          // Ad Content
+                          Positioned(
+                            left: 16,
+                            right: 16,
+                            bottom: 16,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  item.title,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    shadows: [
+                                      Shadow(
+                                        offset: Offset(0, 1),
+                                        blurRadius: 3,
+                                        color: Colors.black45,
+                                      ),
+                                    ],
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (item.description != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Text(
+                                      item.description!,
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.9),
+                                        fontSize: 12,
+                                        shadows: const [
+                                          Shadow(
+                                            offset: Offset(0, 1),
+                                            blurRadius: 2,
+                                            color: Colors.black38,
+                                          ),
+                                        ],
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                const SizedBox(height: 8),
+                                // Visit Link Button with Pulse Animation
+                                PulseAnimatedButton(
+                                  onTap: () => item.onTap?.call(),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -311,4 +303,129 @@ class AdBannerItem {
     this.description,
     this.onTap,
   });
+}
+
+// Add HoverableAdCard widget for enhanced hover effect
+class HoverableAdCard extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+
+  const HoverableAdCard({Key? key, required this.child, this.onTap})
+    : super(key: key);
+
+  @override
+  State<HoverableAdCard> createState() => _HoverableAdCardState();
+}
+
+class _HoverableAdCardState extends State<HoverableAdCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          transform:
+              _isHovered
+                  ? (Matrix4.identity()..scale(1.03))
+                  : Matrix4.identity(),
+          transformAlignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color:
+                    _isHovered
+                        ? Colors.black.withOpacity(0.2)
+                        : Colors.black.withOpacity(0.1),
+                blurRadius: _isHovered ? 15 : 10,
+                spreadRadius: _isHovered ? 2 : 0,
+                offset: _isHovered ? const Offset(0, 5) : const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
+// Add this new widget for pulsing button animation
+class PulseAnimatedButton extends StatefulWidget {
+  final VoidCallback? onTap;
+
+  const PulseAnimatedButton({Key? key, this.onTap}) : super(key: key);
+
+  @override
+  State<PulseAnimatedButton> createState() => _PulseAnimatedButtonState();
+}
+
+class _PulseAnimatedButtonState extends State<PulseAnimatedButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+  bool _isHovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedBuilder(
+        animation: _animationController,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _isHovered ? 1.05 : _scaleAnimation.value,
+            child: ElevatedButton.icon(
+              onPressed: widget.onTap,
+              icon: const Icon(Icons.launch_rounded, size: 16),
+              label: const Text('Visit Link'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.orange.shade700,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                textStyle: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+                elevation: _isHovered ? 5 : 3,
+                shadowColor: Colors.black.withOpacity(_isHovered ? 0.4 : 0.3),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 }

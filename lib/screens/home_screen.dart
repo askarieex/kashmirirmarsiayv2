@@ -6,11 +6,13 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../widgets/wavy_header_clipper.dart';
 import '../widgets/ultra_beautiful_loading_animation.dart';
 import '../models/poster_item.dart';
 import '../models/artist_item.dart';
 import '../models/popup_message.dart'; // Import PopupMessage
+import '../models/paid_promotion.dart'; // Import PaidPromotion
 import '../widgets/beautiful_popup.dart'; // Import BeautifulPopup
 import 'view_profile_screen.dart';
 import 'marsiya_screen.dart';
@@ -65,6 +67,7 @@ class _HomeScreenState extends State<HomeScreen>
   String _gregorianDate = '';
 
   bool _isLoading = true;
+  bool _isLoadingAds = true;
 
   // Popup message properties
 
@@ -148,32 +151,8 @@ class _HomeScreenState extends State<HomeScreen>
   late final Animation<double> _fadeAnimation;
   late final Animation<double> _scaleAnimation;
 
-  final List<AdBannerItem> _adItems = [
-    AdBannerItem(
-      imageUrl: 'https://images.unsplash.com/photo-1569949381669-ecf31ae8e613',
-      title: 'Special Muharram Collection',
-      description: 'Explore our vast collection of exclusive marsiya and noha',
-      onTap: () {
-        // Handle ad tap
-      },
-    ),
-    AdBannerItem(
-      imageUrl: 'https://images.unsplash.com/photo-1566296412153-9de7ba8b6825',
-      title: 'Karbala Memorial Event',
-      description: 'Join us for a special gathering this Muharram',
-      onTap: () {
-        // Handle ad tap
-      },
-    ),
-    AdBannerItem(
-      imageUrl: 'https://images.unsplash.com/photo-1488372759477-a7f4aa078cb6',
-      title: 'Premium Islamic Books',
-      description: 'Exclusive collection of religious literature',
-      onTap: () {
-        // Handle ad tap
-      },
-    ),
-  ];
+  // Change from final to late for loading from API
+  late List<AdBannerItem> _adItems = [];
 
   @override
   void initState() {
@@ -201,12 +180,14 @@ class _HomeScreenState extends State<HomeScreen>
 
     // Set initial loading state
     _isLoading = true;
+    _isLoadingAds = true;
 
     // Delay data fetching to show skeleton loader
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted) {
         _fetchPrayerTimes();
         _fetchPosters();
+        _fetchPaidPromotions();
         _setupPopupMessage();
       }
     });
@@ -246,6 +227,7 @@ class _HomeScreenState extends State<HomeScreen>
   Future<void> _refreshData() async {
     setState(() {
       _isLoading = true;
+      _isLoadingAds = true;
     });
 
     try {
@@ -253,6 +235,7 @@ class _HomeScreenState extends State<HomeScreen>
       await Future.delayed(const Duration(milliseconds: 1500));
       await _fetchPrayerTimes();
       await _fetchPosters();
+      await _fetchPaidPromotions();
     } finally {
       setState(() {
         _isLoading = false;
@@ -536,13 +519,30 @@ class _HomeScreenState extends State<HomeScreen>
                                       padding: const EdgeInsets.only(
                                         bottom: 20,
                                       ),
-                                      child: SponsoredAdBanner(
-                                        adItems: _adItems,
-                                        height: 140,
-                                        margin: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                        ),
-                                      ),
+                                      child:
+                                          _isLoadingAds
+                                              ? Center(
+                                                child: SizedBox(
+                                                  height: 140,
+                                                  child: Center(
+                                                    child: CircularProgressIndicator(
+                                                      valueColor:
+                                                          AlwaysStoppedAnimation<
+                                                            Color
+                                                          >(primaryColor),
+                                                      strokeWidth: 2,
+                                                    ),
+                                                  ),
+                                                ),
+                                              )
+                                              : SponsoredAdBanner(
+                                                adItems: _adItems,
+                                                height: 140,
+                                                margin:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 16,
+                                                    ),
+                                              ),
                                     ),
                                   ),
                                 ),
@@ -1371,11 +1371,21 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         _buildFeatureGrid(),
         const SizedBox(height: 12),
-        SponsoredAdBanner(
-          adItems: _adItems.reversed.toList(),
-          height: 120,
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        ),
+        _isLoadingAds
+            ? SizedBox(
+              height: 120,
+              child: Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                  strokeWidth: 2,
+                ),
+              ),
+            )
+            : SponsoredAdBanner(
+              adItems: _adItems.reversed.toList(),
+              height: 120,
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            ),
         const SizedBox(height: 8),
       ],
     );
@@ -2015,6 +2025,78 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       ],
     );
+  }
+
+  // Add method to fetch paid promotions
+  Future<void> _fetchPaidPromotions() async {
+    try {
+      final promotions = await PaidPromotion.fetchPaidPromotions();
+
+      if (mounted) {
+        setState(() {
+          _adItems = promotions.map((promo) => promo.toAdBannerItem()).toList();
+
+          // If no promotions are found, use fallback ads
+          if (_adItems.isEmpty) {
+            _setFallbackAds();
+          }
+
+          _isLoadingAds = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading paid promotions: $e');
+      // Use fallback ads in case of error
+      if (mounted) {
+        setState(() {
+          _setFallbackAds();
+          _isLoadingAds = false;
+        });
+      }
+    }
+  }
+
+  // Fallback ads in case API fails
+  void _setFallbackAds() {
+    _adItems = [
+      AdBannerItem(
+        imageUrl:
+            'https://images.unsplash.com/photo-1569949381669-ecf31ae8e613',
+        title: 'Special Muharram Collection',
+        description:
+            'Explore our vast collection of exclusive marsiya and noha',
+        onTap: () async {
+          final url = Uri.parse('https://example.com/special-collection');
+          if (await canLaunchUrl(url)) {
+            await launchUrl(url);
+          }
+        },
+      ),
+      AdBannerItem(
+        imageUrl:
+            'https://images.unsplash.com/photo-1566296412153-9de7ba8b6825',
+        title: 'Karbala Memorial Event',
+        description: 'Join us for a special gathering this Muharram',
+        onTap: () async {
+          final url = Uri.parse('https://example.com/karbala-event');
+          if (await canLaunchUrl(url)) {
+            await launchUrl(url);
+          }
+        },
+      ),
+      AdBannerItem(
+        imageUrl:
+            'https://images.unsplash.com/photo-1488372759477-a7f4aa078cb6',
+        title: 'Premium Islamic Books',
+        description: 'Exclusive collection of religious literature',
+        onTap: () async {
+          final url = Uri.parse('https://example.com/islamic-books');
+          if (await canLaunchUrl(url)) {
+            await launchUrl(url);
+          }
+        },
+      ),
+    ];
   }
 }
 
