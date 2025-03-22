@@ -6,12 +6,14 @@ class SponsoredAdBanner extends StatefulWidget {
   final List<AdBannerItem> adItems;
   final double height;
   final EdgeInsetsGeometry? margin;
+  final bool showTitle;
 
   const SponsoredAdBanner({
     Key? key,
     required this.adItems,
     this.height = 150,
     this.margin,
+    this.showTitle = true,
   }) : super(key: key);
 
   @override
@@ -97,68 +99,69 @@ class _SponsoredAdBannerState extends State<SponsoredAdBanner>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(
-              left: 16.0,
-              bottom: 8.0,
-              right: 16.0,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  height: 16,
-                  width: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade700,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade700,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Text(
-                    "Sponsored",
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+          if (widget.showTitle)
+            Padding(
+              padding: const EdgeInsets.only(
+                left: 16.0,
+                bottom: 8.0,
+                right: 16.0,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    height: 16,
+                    width: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade700,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                ),
-                const Spacer(),
-                AnimatedBuilder(
-                  animation: _indicatorAnimation,
-                  builder: (context, child) {
-                    return Container(
-                      width: 50,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade700,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      "Sponsored",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
                       ),
-                      child: FractionallySizedBox(
-                        alignment: Alignment.centerLeft,
-                        widthFactor: _indicatorAnimation.value,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.orange.shade700,
-                            borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const Spacer(),
+                  AnimatedBuilder(
+                    animation: _indicatorAnimation,
+                    builder: (context, child) {
+                      return Container(
+                        width: 50,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                        child: FractionallySizedBox(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: _indicatorAnimation.value,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade700,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
-                ),
-              ],
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
-          ),
           Container(
             height: widget.height,
             constraints: BoxConstraints(maxHeight: widget.height),

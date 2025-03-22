@@ -71,66 +71,9 @@ class _HomeScreenState extends State<HomeScreen>
 
   // Popup message properties
 
-  final List<PosterItem> _posters = [
-    PosterItem(
-      title: "Upcoming Event",
-      imageUrl:
-          "https://via.placeholder.com/600x300/aaaaaa/000000?text=Banner+1",
-    ),
-    PosterItem(
-      title: "Latest News",
-      imageUrl:
-          "https://via.placeholder.com/600x300/cccccc/000000?text=Banner+2",
-    ),
-    PosterItem(
-      title: "Announcement",
-      imageUrl:
-          "https://via.placeholder.com/600x300/aaaaaa/000000?text=Banner+3",
-    ),
-  ];
+  final List<PosterItem> _posters = [];
 
-  final List<ArtistItem> _artists = [
-    ArtistItem(
-      name: "Zakir One",
-      imageUrl: "https://via.placeholder.com/150/FF5722/FFFFFF?text=Z1",
-    ),
-    ArtistItem(
-      name: "Noha Khan Two",
-      imageUrl: "https://via.placeholder.com/150/3F51B5/FFFFFF?text=N2",
-    ),
-    ArtistItem(
-      name: "Zakir Three",
-      imageUrl: "https://via.placeholder.com/150/009688/FFFFFF?text=Z3",
-    ),
-    ArtistItem(
-      name: "Noha Khan Four",
-      imageUrl: "https://via.placeholder.com/150/E91E63/FFFFFF?text=N4",
-    ),
-    ArtistItem(
-      name: "Zakir Five",
-      imageUrl: "https://via.placeholder.com/150/4CAF50/FFFFFF?text=Z5",
-    ),
-    ArtistItem(
-      name: "Noha Khan Six",
-      imageUrl: "https://via.placeholder.com/150/2196F3/FFFFFF?text=N6",
-    ),
-    ArtistItem(
-      name: "Zakir Seven",
-      imageUrl: "https://via.placeholder.com/150/FFC107/000000?text=Z7",
-    ),
-    ArtistItem(
-      name: "Noha Khan Eight",
-      imageUrl: "https://via.placeholder.com/150/9C27B0/FFFFFF?text=N8",
-    ),
-    ArtistItem(
-      name: "Zakir Nine",
-      imageUrl: "https://via.placeholder.com/150/607D8B/FFFFFF?text=Z9",
-    ),
-    ArtistItem(
-      name: "Noha Khan Ten",
-      imageUrl: "https://via.placeholder.com/150/795548/FFFFFF?text=N10",
-    ),
-  ];
+  final List<ArtistItem> _artists = [];
 
   final List<Map<String, dynamic>> features = [
     {'label': 'Marsiya', 'icon': Icons.music_note},
@@ -187,6 +130,7 @@ class _HomeScreenState extends State<HomeScreen>
       if (mounted) {
         _fetchPrayerTimes();
         _fetchPosters();
+        _fetchArtists();
         _fetchPaidPromotions();
         _setupPopupMessage();
       }
@@ -235,6 +179,7 @@ class _HomeScreenState extends State<HomeScreen>
       await Future.delayed(const Duration(milliseconds: 1500));
       await _fetchPrayerTimes();
       await _fetchPosters();
+      await _fetchArtists();
       await _fetchPaidPromotions();
     } finally {
       setState(() {
@@ -298,12 +243,25 @@ class _HomeScreenState extends State<HomeScreen>
             _posters.addAll(loadedPosters);
           });
           await _precachePosterImages();
+        } else {
+          // Clear posters if API response is not successful
+          setState(() {
+            _posters.clear();
+          });
         }
       } else {
         debugPrint('Failed to load posters: ${response.statusCode}');
+        // Clear posters if API call fails
+        setState(() {
+          _posters.clear();
+        });
       }
     } catch (e) {
       debugPrint('Error fetching posters: $e');
+      // Clear posters if any exception occurs
+      setState(() {
+        _posters.clear();
+      });
     }
   }
 
@@ -438,6 +396,7 @@ class _HomeScreenState extends State<HomeScreen>
                                         left: 16,
                                         right: 16,
                                         bottom: 20,
+                                        top: 10,
                                       ),
                                       decoration: BoxDecoration(
                                         color: Colors.white,
@@ -445,9 +404,9 @@ class _HomeScreenState extends State<HomeScreen>
                                         boxShadow: [
                                           BoxShadow(
                                             color: Colors.black.withOpacity(
-                                              0.08,
+                                              0.05,
                                             ),
-                                            blurRadius: 10,
+                                            blurRadius: 8,
                                             spreadRadius: 0,
                                             offset: const Offset(0, 2),
                                           ),
@@ -456,50 +415,7 @@ class _HomeScreenState extends State<HomeScreen>
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
-                                        children: [
-                                          Padding(
-                                            padding: const EdgeInsets.fromLTRB(
-                                              16,
-                                              14,
-                                              16,
-                                              4,
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                Container(
-                                                  width: 4,
-                                                  height: 18,
-                                                  decoration: BoxDecoration(
-                                                    color: primaryColor,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          2,
-                                                        ),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Text(
-                                                  "Quick Access",
-                                                  style: GoogleFonts.poppins(
-                                                    color: textPrimaryColor,
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w600,
-                                                    letterSpacing: 0.5,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          Padding(
-                                            padding: const EdgeInsets.fromLTRB(
-                                              12,
-                                              4,
-                                              12,
-                                              16,
-                                            ),
-                                            child: _buildQuickActionsRow(),
-                                          ),
-                                        ],
+                                        children: [_buildQuickActionsRow()],
                                       ),
                                     ),
                                   ),
@@ -509,47 +425,54 @@ class _HomeScreenState extends State<HomeScreen>
 
                             // Sponsored Ad Banner
                             SliverToBoxAdapter(
-                              child: AnimationConfiguration.staggeredList(
-                                position: 2,
-                                duration: const Duration(milliseconds: 800),
-                                child: SlideAnimation(
-                                  verticalOffset: 40,
-                                  child: FadeInAnimation(
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 20,
-                                      ),
-                                      child:
-                                          _isLoadingAds
-                                              ? Center(
-                                                child: SizedBox(
-                                                  height: 140,
-                                                  child: Center(
-                                                    child: CircularProgressIndicator(
-                                                      valueColor:
-                                                          AlwaysStoppedAnimation<
-                                                            Color
-                                                          >(primaryColor),
-                                                      strokeWidth: 2,
-                                                    ),
-                                                  ),
-                                                ),
-                                              )
-                                              : SponsoredAdBanner(
-                                                adItems: _adItems,
-                                                height: 140,
-                                                margin:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 16,
-                                                    ),
+                              child:
+                                  _adItems.isEmpty
+                                      ? const SizedBox.shrink() // Hide completely if no ads available
+                                      : AnimationConfiguration.staggeredList(
+                                        position: 2,
+                                        duration: const Duration(
+                                          milliseconds: 800,
+                                        ),
+                                        child: SlideAnimation(
+                                          verticalOffset: 40,
+                                          child: FadeInAnimation(
+                                            child: Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: 20,
                                               ),
-                                    ),
-                                  ),
-                                ),
-                              ),
+                                              child:
+                                                  _isLoadingAds
+                                                      ? Center(
+                                                        child: SizedBox(
+                                                          height: 140,
+                                                          child: Center(
+                                                            child: CircularProgressIndicator(
+                                                              valueColor:
+                                                                  AlwaysStoppedAnimation<
+                                                                    Color
+                                                                  >(
+                                                                    primaryColor,
+                                                                  ),
+                                                              strokeWidth: 2,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      )
+                                                      : SponsoredAdBanner(
+                                                        adItems: _adItems,
+                                                        height: 140,
+                                                        margin:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 16,
+                                                            ),
+                                                      ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                             ),
 
-                            // Top Zakirs section with adjusted spacing
+                            // Top Zakirs section with adjusted spacing - always show the section title
                             SliverToBoxAdapter(
                               child: AnimationConfiguration.staggeredList(
                                 position: 3,
@@ -811,11 +734,11 @@ class _HomeScreenState extends State<HomeScreen>
               // Content
               Column(
                 children: [
-                  // Compact App Bar with reduced height
+                  // Clean minimal header with just navigation icons
                   SafeArea(
                     bottom: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -823,7 +746,7 @@ class _HomeScreenState extends State<HomeScreen>
                             icon: Icon(
                               Icons.menu,
                               color: primaryColor,
-                              size: 22,
+                              size: 24,
                             ),
                             onPressed: () {
                               Scaffold.of(context).openDrawer();
@@ -831,20 +754,11 @@ class _HomeScreenState extends State<HomeScreen>
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
                           ),
-                          Text(
-                            'Kashmiri Marsiya',
-                            style: GoogleFonts.poppins(
-                              color: primaryColor,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.2,
-                            ),
-                          ),
                           IconButton(
                             icon: Icon(
                               Icons.notifications_none_rounded,
                               color: primaryColor,
-                              size: 22,
+                              size: 24,
                             ),
                             onPressed: () {
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -861,119 +775,98 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
 
-                  // Combined Date and Prayer Times with optimized compact design
+                  // Islamic Date Card in Green
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
                     child: Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.7),
-                          width: 1.5,
-                        ),
+                        color: primaryColor,
+                        borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.03),
-                            blurRadius: 6,
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
                         ],
                       ),
-                      child: Column(
-                        children: [
-                          // Compact Date Section
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
-                            child: Row(
-                              children: [
-                                // Smaller calendar icon
-                                Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFEAF5F0),
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: primaryColor.withOpacity(0.12),
-                                        blurRadius: 3,
-                                        offset: const Offset(0, 1),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Icon(
-                                    Icons.calendar_today_outlined,
-                                    color: primaryColor,
-                                    size: 14,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _hijriDate.isNotEmpty
-                                            ? _hijriDate
-                                            : 'Loading date...',
-                                        style: GoogleFonts.poppins(
-                                          color: textPrimaryColor,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      Text(
-                                        _gregorianDate.isNotEmpty
-                                            ? _gregorianDate
-                                            : 'Please wait...',
-                                        style: GoogleFonts.poppins(
-                                          color: textSecondaryColor,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w400,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 10,
+                          horizontal: 16,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.calendar_today,
+                              color: Colors.white,
+                              size: 20,
                             ),
-                          ),
-
-                          // Elegant slim divider
-                          Container(
-                            height: 1,
-                            margin: const EdgeInsets.symmetric(horizontal: 20),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.grey.withOpacity(0.05),
-                                  Colors.grey.withOpacity(0.2),
-                                  Colors.grey.withOpacity(0.05),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _hijriDate.isNotEmpty
+                                        ? _hijriDate
+                                        : '22 Ramaḍān 1446',
+                                    style: GoogleFonts.poppins(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    _gregorianDate.isNotEmpty
+                                        ? _gregorianDate
+                                        : '22 March 2025',
+                                    style: GoogleFonts.poppins(
+                                      color: Colors.white.withOpacity(0.85),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
                                 ],
-                                stops: const [0.0, 0.5, 1.0],
                               ),
                             ),
-                          ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
 
-                          // Compact Prayer Times Section
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
-                            child:
-                                _fajr.isEmpty &&
-                                        _sunrise.isEmpty &&
-                                        _dhuhr.isEmpty &&
-                                        _maghrib.isEmpty &&
-                                        _midnight.isEmpty
-                                    ? _buildPrayerTimesLoading()
-                                    : _buildCompactPrayerTimesRow(),
+                  // Prayer Times Card
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 4,
+                            spreadRadius: 0,
+                            offset: const Offset(0, 1),
                           ),
                         ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                          horizontal: 8,
+                        ),
+                        child:
+                            _fajr.isEmpty &&
+                                    _sunrise.isEmpty &&
+                                    _dhuhr.isEmpty &&
+                                    _maghrib.isEmpty &&
+                                    _midnight.isEmpty
+                                ? _buildPrayerTimesLoading()
+                                : _buildModernPrayerTimesRow(),
                       ),
                     ),
                   ),
@@ -983,42 +876,6 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildPrayerTimesCard(double screenWidth) {
-    return Container(
-      width: screenWidth * 0.94,
-      margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.03),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            spreadRadius: 0,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Prayer times content (green line removed)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-            child:
-                _fajr.isEmpty &&
-                        _sunrise.isEmpty &&
-                        _dhuhr.isEmpty &&
-                        _maghrib.isEmpty &&
-                        _midnight.isEmpty
-                    ? _buildPrayerTimesLoading()
-                    : _buildPrayerTimesContent(),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1047,90 +904,63 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildPrayerTimesContent() {
+  Widget _buildModernPrayerTimesRow() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _buildCompactPrayerTimeBlock(
-          'Fajr',
-          _fajr,
-          Icons.nightlight_outlined,
-          Color(0xFFE0E7FF),
+        _buildModernPrayerTimeItem(
+          icon: Icons.nightlight_outlined,
+          time: _fajr.isNotEmpty ? _fajr : '05:38',
+          label: 'Fajr',
         ),
-        _buildCompactPrayerTimeBlock(
-          'Sunrise',
-          _sunrise,
-          Icons.wb_sunny_outlined,
-          Color(0xFFFFEDDE),
+        _buildModernPrayerTimeItem(
+          icon: Icons.wb_sunny_outlined,
+          time: _sunrise.isNotEmpty ? _sunrise : '06:32',
+          label: 'Sunrise',
         ),
-        _buildCompactPrayerTimeBlock(
-          'Dhuhr',
-          _dhuhr,
-          Icons.sunny,
-          Color(0xFFFFF8DD),
+        _buildModernPrayerTimeItem(
+          icon: Icons.sunny,
+          time: _dhuhr.isNotEmpty ? _dhuhr : '12:38',
+          label: 'Dhuhr',
         ),
-        _buildCompactPrayerTimeBlock(
-          'Maghrib',
-          _maghrib,
-          Icons.nightlight_round,
-          Color(0xFFDDF4FF),
+        _buildModernPrayerTimeItem(
+          icon: Icons.nightlight_round,
+          time: _maghrib.isNotEmpty ? _maghrib : '18:44',
+          label: 'Maghrib',
         ),
-        _buildCompactPrayerTimeBlock(
-          'Midnight',
-          _midnight,
-          Icons.bedtime_outlined,
-          Color(0xFFE4E4F2),
+        _buildModernPrayerTimeItem(
+          icon: Icons.bedtime_outlined,
+          time: _midnight.isNotEmpty ? _midnight : '00:38',
+          label: 'Midnight',
         ),
       ],
     );
   }
 
-  Widget _buildCompactPrayerTimeBlock(
-    String name,
-    String time,
-    IconData icon,
-    Color bgColor,
-  ) {
+  Widget _buildModernPrayerTimeItem({
+    required IconData icon,
+    required String time,
+    required String label,
+  }) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Icon with circle background - enhanced
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: bgColor.withOpacity(0.5),
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 4,
-                spreadRadius: 0,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Icon(icon, size: 18, color: primaryColor.withOpacity(0.8)),
-          ),
-        ),
-        const SizedBox(height: 5),
-        // Time display - enhanced
+        Icon(icon, size: 18, color: textSecondaryColor),
+        const SizedBox(height: 6),
         Text(
           time,
           style: GoogleFonts.poppins(
-            color: textPrimaryColor,
-            fontSize: 15,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
+            color: textPrimaryColor,
           ),
         ),
-        // Prayer name - enhanced
         Text(
-          name,
+          label,
           style: GoogleFonts.poppins(
+            fontSize: 10,
             color: textSecondaryColor,
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ],
@@ -1138,11 +968,234 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildTopZakirSection() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 6),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: primaryColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Top Zakirs and Noha Khans",
+                      style: GoogleFonts.poppins(
+                        color: textPrimaryColor,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+                InkWell(
+                  onTap: () {
+                    // Show snackbar instead of navigating to a new page
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Coming soon: Full profiles list'),
+                        backgroundColor: primaryColor,
+                      ),
+                    );
+                  },
+                  child: Text(
+                    "See All",
+                    style: GoogleFonts.poppins(
+                      color: primaryColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Only show artist scrollable row if there are artists
+          _artists.isEmpty
+              ? Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 20,
+                ),
+                child: Center(
+                  child: Text(
+                    "No profiles available at the moment",
+                    style: GoogleFonts.poppins(
+                      color: textSecondaryColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ),
+              )
+              : SizedBox(
+                height: 140,
+                child: ListView.builder(
+                  physics: const BouncingScrollPhysics(),
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _artists.length,
+                  controller: _artistScrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  itemBuilder: (context, index) {
+                    final artist = _artists[index];
+                    return Container(
+                      width: 100,
+                      margin: const EdgeInsets.symmetric(horizontal: 6),
+                      child: Column(
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              // Add debug print
+                              debugPrint(
+                                'Tapped profile with ID: ${artist.uniqueId}',
+                              );
+
+                              // Navigate to ViewProfileScreen with the profile data
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => ViewProfileScreen(
+                                        profileId: artist.uniqueId,
+                                      ),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              width: 75,
+                              height: 75,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: primaryColor.withOpacity(0.3),
+                                  width: 2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 8,
+                                    spreadRadius: 0,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Hero(
+                                tag: 'profile-${artist.uniqueId}',
+                                child: ClipOval(
+                                  child: Image.network(
+                                    artist.imageUrl,
+                                    fit: BoxFit.cover,
+                                    loadingBuilder: (
+                                      context,
+                                      child,
+                                      loadingProgress,
+                                    ) {
+                                      if (loadingProgress == null) return child;
+                                      return Container(
+                                        color: Colors.grey[100],
+                                        child: const Center(
+                                          child: SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                    primaryColor,
+                                                  ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    errorBuilder:
+                                        (context, url, error) => Container(
+                                          color: Colors.grey[100],
+                                          child: Icon(
+                                            Icons.person,
+                                            color: primaryColor.withOpacity(
+                                              0.7,
+                                            ),
+                                            size: 30,
+                                          ),
+                                        ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              children: [
+                                Text(
+                                  artist.name,
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: textPrimaryColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: primaryColor.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    artist.category,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w500,
+                                      color: primaryColor,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContentSection(double screenWidth) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Only show the banner section if posters are available
+        if (_posters.isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
@@ -1157,7 +1210,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  "Top Zakirs and Noha Khans",
+                  "Featured Content",
                   style: GoogleFonts.poppins(
                     color: textPrimaryColor,
                     fontSize: 16,
@@ -1165,185 +1218,12 @@ class _HomeScreenState extends State<HomeScreen>
                     letterSpacing: 0.5,
                   ),
                 ),
-                const Spacer(),
-                TextButton(
-                  onPressed: () {
-                    // Navigate to see all
-                  },
-                  child: Text(
-                    "See All",
-                    style: TextStyle(
-                      color: primaryColor,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
-          SizedBox(
-            height: 120, // Reduced from 125
-            child: ListView.builder(
-              controller: _artistScrollController,
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.only(
-                left: 12,
-                right: 12,
-                bottom: 4, // Reduced from 6
-                top: 6, // Reduced from 8
-              ),
-              itemCount: _artists.length,
-              itemBuilder: (context, index) {
-                final artist = _artists[index];
-                return AnimationConfiguration.staggeredList(
-                  position: index,
-                  duration: const Duration(milliseconds: 500),
-                  child: SlideAnimation(
-                    horizontalOffset: 50.0,
-                    child: FadeInAnimation(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) =>
-                                        ViewProfileScreen(artist: artist),
-                              ),
-                            );
-                          },
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                height: 75,
-                                width: 75,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: 3,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.15),
-                                      spreadRadius: 0,
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 3),
-                                    ),
-                                  ],
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                    colors: [
-                                      primaryColor.withOpacity(0.2),
-                                      Colors.white,
-                                    ],
-                                  ),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(3.0),
-                                  child: CircleAvatar(
-                                    radius: 34,
-                                    backgroundImage: NetworkImage(
-                                      artist.imageUrl,
-                                    ),
-                                    backgroundColor: Colors.grey.shade200,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Container(
-                                constraints: const BoxConstraints(maxWidth: 90),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: primaryColor,
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 4,
-                                      spreadRadius: 0,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Text(
-                                  artist.name,
-                                  textAlign: TextAlign.center,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.poppins(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
+          _buildBannerCarousel(),
+          const SizedBox(height: 12),
         ],
-      ),
-    );
-  }
-
-  Widget _buildContentSection(double screenWidth) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              Container(
-                width: 4,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: primaryColor,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                "Featured Content",
-                style: GoogleFonts.poppins(
-                  color: textPrimaryColor,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const Spacer(),
-              TextButton(
-                onPressed: () {
-                  // Navigate to see all featured content
-                },
-                child: Text(
-                  "See All",
-                  style: TextStyle(
-                    color: primaryColor,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        _buildBannerCarousel(),
-        const SizedBox(height: 12),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
@@ -1370,23 +1250,9 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ),
         _buildFeatureGrid(),
-        const SizedBox(height: 12),
-        _isLoadingAds
-            ? SizedBox(
-              height: 120,
-              child: Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
-                  strokeWidth: 2,
-                ),
-              ),
-            )
-            : SponsoredAdBanner(
-              adItems: _adItems.reversed.toList(),
-              height: 120,
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 20),
+        _buildFooter(),
+        const SizedBox(height: 40),
       ],
     );
   }
@@ -1760,99 +1626,108 @@ class _HomeScreenState extends State<HomeScreen>
 
   // Create custom QuickActionsRow widget
   Widget _buildQuickActionsRow() {
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildQuickActionItem(
-            icon: Icons.music_note_rounded,
-            iconBackground: const Color(0xFF00875A),
-            label: 'Marsiya',
-            description: 'Explore',
-            onTap: () {
-              Navigator.push(
-                context,
-                PageRouteBuilder(
-                  pageBuilder:
-                      (context, animation, secondaryAnimation) =>
-                          const MarsiyaScreen(),
-                  transitionsBuilder: (
-                    context,
-                    animation,
-                    secondaryAnimation,
-                    child,
-                  ) {
-                    return FadeTransition(opacity: animation, child: child);
-                  },
-                  transitionDuration: const Duration(milliseconds: 500),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: primaryColor,
+                  borderRadius: BorderRadius.circular(2),
                 ),
-              );
-            },
-          ),
-          _buildQuickActionItem(
-            icon: Icons.headphones_rounded,
-            iconBackground: const Color(0xFF2C7695),
-            label: 'Noha',
-            description: 'Explore',
-            onTap: () {
-              Navigator.push(
-                context,
-                PageRouteBuilder(
-                  pageBuilder:
-                      (context, animation, secondaryAnimation) =>
-                          const NohaScreen(),
-                  transitionsBuilder: (
-                    context,
-                    animation,
-                    secondaryAnimation,
-                    child,
-                  ) {
-                    return FadeTransition(opacity: animation, child: child);
-                  },
-                  transitionDuration: const Duration(milliseconds: 500),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                "Quick Access",
+                style: GoogleFonts.poppins(
+                  color: textPrimaryColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActionItem({
-    required IconData icon,
-    required Color iconBackground,
-    required String label,
-    required String description,
-    required VoidCallback onTap,
-  }) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [iconBackground.withOpacity(0.9), iconBackground],
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: iconBackground.withOpacity(0.25),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
               ),
             ],
           ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _buildQuickAccessCard(
+                icon: Icons.music_note,
+                title: 'Marsiya',
+                subtitle: 'Explore',
+                backgroundColor: primaryColor,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const MarsiyaScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildQuickAccessCard(
+                icon: Icons.headphones,
+                title: 'Noha',
+                subtitle: 'Explore',
+                backgroundColor: const Color(0xFF2C7695),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const NohaScreen()),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickAccessCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color backgroundColor,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: backgroundColor,
+      borderRadius: BorderRadius.circular(16),
+      elevation: 2,
+      clipBehavior: Clip.hardEdge,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          height: 130,
+          padding: const EdgeInsets.all(16),
           child: Stack(
             children: [
               // Background decorative circles
               Positioned(
-                top: -15,
-                right: -15,
+                top: -20,
+                right: -20,
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withOpacity(0.1),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: -15,
+                left: -20,
                 child: Container(
                   width: 60,
                   height: 60,
@@ -1862,168 +1737,60 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
               ),
-              Positioned(
-                bottom: -20,
-                left: -20,
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.08),
-                  ),
-                ),
-              ),
               // Content
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 16,
-                  horizontal: 12,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.25),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(icon, color: Colors.white, size: 24),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      label,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    child: Icon(icon, size: 22, color: Colors.white),
+                  ),
+                  const Spacer(),
+                  Text(
+                    title,
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      description,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
-                        color: Colors.white.withOpacity(0.85),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Text(
+                        subtitle,
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.arrow_forward,
+                          size: 12,
+                          color: Colors.white,
+                        ),
                       ),
-                      child: Icon(
-                        Icons.arrow_forward,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ),
             ],
           ),
         ),
       ),
-    );
-  }
-
-  // New compact prayer times row with optimized layout
-  Widget _buildCompactPrayerTimesRow() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _buildTinyPrayerTimeBlock(
-          'Fajr',
-          _fajr,
-          Icons.nightlight_outlined,
-          Color(0xFFE0E7FF),
-        ),
-        _buildTinyPrayerTimeBlock(
-          'Sunrise',
-          _sunrise,
-          Icons.wb_sunny_outlined,
-          Color(0xFFFFEDDE),
-        ),
-        _buildTinyPrayerTimeBlock(
-          'Dhuhr',
-          _dhuhr,
-          Icons.sunny,
-          Color(0xFFFFF8DD),
-        ),
-        _buildTinyPrayerTimeBlock(
-          'Maghrib',
-          _maghrib,
-          Icons.nightlight_round,
-          Color(0xFFDDF4FF),
-        ),
-        _buildTinyPrayerTimeBlock(
-          'Midnight',
-          _midnight,
-          Icons.bedtime_outlined,
-          Color(0xFFE4E4F2),
-        ),
-      ],
-    );
-  }
-
-  // New smaller prayer time blocks for more compact layout
-  Widget _buildTinyPrayerTimeBlock(
-    String name,
-    String time,
-    IconData icon,
-    Color bgColor,
-  ) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Smaller icon with optimized design
-        Container(
-          width: 30,
-          height: 30,
-          decoration: BoxDecoration(
-            color: bgColor.withOpacity(0.5),
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 3,
-                spreadRadius: 0,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Icon(icon, size: 14, color: primaryColor.withOpacity(0.8)),
-          ),
-        ),
-        const SizedBox(height: 2),
-        // Time display
-        Text(
-          time,
-          style: GoogleFonts.poppins(
-            color: textPrimaryColor,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        // Prayer name - smaller font
-        Text(
-          name,
-          style: GoogleFonts.poppins(
-            color: textSecondaryColor,
-            fontSize: 9,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
     );
   }
 
@@ -2035,69 +1802,385 @@ class _HomeScreenState extends State<HomeScreen>
       if (mounted) {
         setState(() {
           _adItems = promotions.map((promo) => promo.toAdBannerItem()).toList();
-
-          // If no promotions are found, use fallback ads
-          if (_adItems.isEmpty) {
-            _setFallbackAds();
-          }
-
+          // No more fallback ads - leave _adItems empty if no promotions found
           _isLoadingAds = false;
         });
       }
     } catch (e) {
       debugPrint('Error loading paid promotions: $e');
-      // Use fallback ads in case of error
+      // Don't use fallback ads in case of error - leave _adItems empty
       if (mounted) {
         setState(() {
-          _setFallbackAds();
+          _adItems = []; // Set to empty list instead of fallback ads
           _isLoadingAds = false;
         });
       }
     }
   }
 
-  // Fallback ads in case API fails
-  void _setFallbackAds() {
-    _adItems = [
-      AdBannerItem(
-        imageUrl:
-            'https://images.unsplash.com/photo-1569949381669-ecf31ae8e613',
-        title: 'Special Muharram Collection',
-        description:
-            'Explore our vast collection of exclusive marsiya and noha',
-        onTap: () async {
-          final url = Uri.parse('https://example.com/special-collection');
-          if (await canLaunchUrl(url)) {
-            await launchUrl(url);
-          }
-        },
-      ),
-      AdBannerItem(
-        imageUrl:
-            'https://images.unsplash.com/photo-1566296412153-9de7ba8b6825',
-        title: 'Karbala Memorial Event',
-        description: 'Join us for a special gathering this Muharram',
-        onTap: () async {
-          final url = Uri.parse('https://example.com/karbala-event');
-          if (await canLaunchUrl(url)) {
-            await launchUrl(url);
-          }
-        },
-      ),
-      AdBannerItem(
-        imageUrl:
-            'https://images.unsplash.com/photo-1488372759477-a7f4aa078cb6',
-        title: 'Premium Islamic Books',
-        description: 'Exclusive collection of religious literature',
-        onTap: () async {
-          final url = Uri.parse('https://example.com/islamic-books');
-          if (await canLaunchUrl(url)) {
-            await launchUrl(url);
-          }
-        },
-      ),
-    ];
+  // Add a method to fetch artists from API
+  Future<void> _fetchArtists() async {
+    try {
+      final url = Uri.parse(
+        'https://algodream.in/admin/api/get_random_profiles.php?api_key=MOHAMMADASKERYMALIKFROMNOWLARI',
+      );
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final jsonData = jsonDecode(response.body);
+        if (jsonData['status'] == 'success') {
+          final List<dynamic> profilesData = jsonData['data'];
+          final List<ArtistItem> loadedArtists =
+              profilesData.map((p) {
+                return ArtistItem(
+                  name: p['name'] ?? '',
+                  imageUrl: p['profile_image'] ?? '',
+                  category: p['category'] ?? '',
+                  uniqueId: p['unique_id'] ?? '',
+                );
+              }).toList();
+          setState(() {
+            _artists.clear();
+            _artists.addAll(loadedArtists);
+          });
+        } else {
+          // Clear artists if API response is not successful
+          setState(() {
+            _artists.clear();
+          });
+        }
+      } else {
+        debugPrint('Failed to load profiles: ${response.statusCode}');
+        // Clear artists if API call fails
+        setState(() {
+          _artists.clear();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching profiles: $e');
+      // Clear artists if any exception occurs
+      setState(() {
+        _artists.clear();
+      });
+    }
   }
+
+  // Beautiful modern professional footer with team credits
+  Widget _buildFooter() {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        // Main footer container with elegant design
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(20, 55, 20, 30),
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF00744E), // Slightly darker green
+                const Color(0xFF00663F),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              // App Branding
+              Text(
+                'Kashmiri Marsiya',
+                style: GoogleFonts.poppins(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 0.5,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Container(
+                width: 70,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Your premier source for spiritual content',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: Colors.white.withOpacity(0.9),
+                  letterSpacing: 0.3,
+                ),
+                textAlign: TextAlign.center,
+              ),
+
+              const SizedBox(height: 30),
+
+              // Social media icons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildSocialIcon(Icons.facebook),
+                  _buildSocialIcon(Icons.phone_android),
+                  _buildSocialIcon(Icons.send),
+                  _buildSocialIcon(Icons.email_outlined),
+                ],
+              ),
+
+              const SizedBox(height: 35),
+
+              // ADTS Logo and Credits with enhanced design
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 20,
+                  horizontal: 20,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    // Image-based ADTS logo from assets with proper styling
+                    Container(
+                      height: 65,
+                      width: 65,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.12),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(15),
+                        child: Image.asset(
+                          'assets/images/Adts Logo.png',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: const Color(0xFF2C7695),
+                              child: const Center(
+                                child: Text(
+                                  'ADTS',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 18),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Developed by Team ADTS',
+                            style: GoogleFonts.poppins(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: textPrimaryColor,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            'Creating digital excellence since 2022',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: textSecondaryColor,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 25),
+
+              // Copyright notice with modern design
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.copyright,
+                    size: 12,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '2024 Kashmiri Marsiya • All Rights Reserved',
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      color: Colors.white.withOpacity(0.8),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // Floating app logo at the top
+        Positioned(
+          top: -40,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Container(
+              height: 80,
+              width: 80,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(color: primaryColor, width: 3),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 12,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ClipOval(
+                child: Padding(
+                  padding: const EdgeInsets.all(2.0),
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      // Fallback to icon if image fails to load
+                      return Container(
+                        height: 60,
+                        width: 60,
+                        decoration: BoxDecoration(
+                          color: primaryColor,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.music_note,
+                          color: Colors.white,
+                          size: 34,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Helper method to build social media icons
+  Widget _buildSocialIcon(IconData icon) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        shape: BoxShape.circle,
+      ),
+      child: IconButton(
+        icon: Icon(icon, color: Colors.white, size: 18),
+        onPressed: () {
+          // Social media action
+        },
+      ),
+    );
+  }
+
+  // Islamic decorative corner element
+  Widget _buildDecorativeCorner() {
+    return SizedBox(
+      width: 30,
+      height: 30,
+      child: CustomPaint(painter: IslamicCornerPainter(primaryColor)),
+    );
+  }
+}
+
+// Islamic corner decoration painter
+class IslamicCornerPainter extends CustomPainter {
+  final Color primaryColor;
+
+  IslamicCornerPainter(this.primaryColor);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint =
+        Paint()
+          ..color = primaryColor.withOpacity(0.2)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5;
+
+    final Path path = Path();
+
+    // Create decorative corner pattern
+    path.moveTo(0, size.height * 0.5);
+    path.quadraticBezierTo(
+      size.width * 0.2,
+      size.height * 0.5,
+      size.width * 0.5,
+      0,
+    );
+
+    path.moveTo(size.width * 0.5, 0);
+    path.quadraticBezierTo(
+      size.width * 0.5,
+      size.height * 0.2,
+      size.width,
+      size.height * 0.5,
+    );
+
+    // Small decorative circle
+    canvas.drawCircle(
+      Offset(size.width * 0.5, size.height * 0.5),
+      size.width * 0.15,
+      paint,
+    );
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 // Add a custom painter for the header pattern
