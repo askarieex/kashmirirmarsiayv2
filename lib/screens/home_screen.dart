@@ -1978,7 +1978,7 @@ class _HomeScreenState extends State<HomeScreen>
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(15),
                         child: Image.asset(
-                          'assets/images/Adts Logo.png',
+                          'assets/images/logo.png',
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
                             return Container(

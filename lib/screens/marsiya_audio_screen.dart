@@ -7,8 +7,8 @@ import 'dart:ui' as ui;
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'full_marsiya_audio_play.dart';
 import 'dart:typed_data';
+import 'package:kashmirimarsiya/screens/full_audio_player.dart';
 
 // Import your bottom navigation targets (if not already imported)
 import 'home_screen.dart';
@@ -52,6 +52,10 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
 
   // Custom cache manager for audio meta data
   final _cacheManager = DefaultCacheManager();
+
+  // Variables for audio player
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _isPlaying = false;
 
   @override
   void initState() {
@@ -298,11 +302,24 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
   void _onItemTap(Map<String, dynamic> item) {
     _globalPlaylist = filteredMarsiyaList;
     _globalCurrentIndex = _globalPlaylist.indexOf(item);
-    Navigator.of(context).push(
+    _openFullPlayer(item);
+  }
+
+  void _openFullPlayer(Map<String, dynamic> audioData) {
+    // Stop the current audio if playing
+    _stopAudio();
+
+    // Navigate to full player screen
+    Navigator.push(
+      context,
       MaterialPageRoute(
         builder:
-            (context) =>
-                FullMarsiyaAudioPlay(audioId: item['id'], autoPlay: true),
+            (context) => FullAudioPlayer(
+              audioId: audioData['id'],
+              contentType: ContentType.marsiya,
+              audioData: audioData,
+              autoPlay: true,
+            ),
       ),
     );
   }
@@ -862,6 +879,15 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
         Icon(icon, size: 14, color: iconColor),
       ],
     );
+  }
+
+  Future<void> _stopAudio() async {
+    if (_isPlaying) {
+      await _audioPlayer.stop();
+      setState(() {
+        _isPlaying = false;
+      });
+    }
   }
 }
 

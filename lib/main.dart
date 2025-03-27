@@ -3,6 +3,7 @@ import 'package:just_audio/just_audio.dart';
 import 'screens/splash_screen.dart';
 import 'screens/get_started_screen.dart';
 import 'screens/main_navigation_screen.dart';
+import 'screens/network_check_screen.dart';
 import 'widgets/persistent_mini_player.dart';
 
 // Use the navigator key from the persistent_mini_player.dart file
@@ -12,6 +13,8 @@ import 'widgets/persistent_mini_player.dart' show navigatorKey;
 final AudioPlayer globalAudioPlayer = AudioPlayer();
 
 void main() {
+  // Ensure Flutter is initialized before running app
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 
@@ -30,32 +33,34 @@ class MyApp extends StatelessWidget {
       // Use the navigator key from persistent_mini_player.dart
       navigatorKey: navigatorKey,
       theme: ThemeData(
-        brightness: Brightness.dark,
-        colorScheme: const ColorScheme(
-          brightness: Brightness.dark,
-          primary: spotifyGreen,
-          onPrimary: Colors.white,
-          secondary: spotifyGreen,
-          onSecondary: Colors.white,
-          error: Colors.red,
-          onError: Colors.white,
-          background: Color(0xFF121212),
-          onBackground: Colors.white,
-          surface: Color(0xFF121212),
-          onSurface: Colors.white,
-        ),
-        scaffoldBackgroundColor: const Color(0xFF121212),
+        brightness: Brightness.light,
         primaryColor: spotifyGreen,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF121212),
-          elevation: 0,
+        colorScheme: ColorScheme.light(
+          primary: spotifyGreen,
+          secondary: spotifyGreen,
         ),
+        scaffoldBackgroundColor: Colors.white,
       ),
-      initialRoute: '/', // Start with the splash screen.
-      routes: {
-        '/': (_) => const SplashScreen(),
-        '/getStarted': (_) => const GetStartedScreen(),
-        '/mainNav': (_) => const MainNavigationScreen(),
+      // Start with splash screen directly (not network check)
+      home: const SplashScreen(),
+      onGenerateRoute: (settings) {
+        // Handle navigation routes
+        switch (settings.name) {
+          case '/':
+            return MaterialPageRoute(builder: (_) => const SplashScreen());
+          case '/getStarted':
+            return MaterialPageRoute(builder: (_) => const GetStartedScreen());
+          case '/mainNav':
+            return MaterialPageRoute(
+              builder: (_) => const MainNavigationScreen(),
+            );
+          case '/networkCheck':
+            return MaterialPageRoute(
+              builder: (_) => const NetworkCheckScreen(),
+            );
+          default:
+            return MaterialPageRoute(builder: (_) => const SplashScreen());
+        }
       },
       // Wrap every route with the persistent mini player.
       builder: (context, child) {

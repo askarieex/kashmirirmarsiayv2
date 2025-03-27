@@ -3,7 +3,7 @@ import 'package:just_audio/just_audio.dart';
 import 'dart:async';
 import 'package:marquee/marquee.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../screens/full_marsiya_audio_play.dart';
+import '../screens/full_audio_player.dart';
 
 /// Global notifier to control the visibility of the persistent mini player.
 ValueNotifier<bool> showPersistentMiniPlayerNotifier = ValueNotifier<bool>(
@@ -14,6 +14,10 @@ ValueNotifier<bool> showPersistentMiniPlayerNotifier = ValueNotifier<bool>(
 String globalTrackTitle = "Now Playing: Some Title";
 String globalArtistName = "zakir";
 String? globalImageUrl = 'https://algodream.in/admin/uploads/default_art.png';
+String globalNohaTitle = "Now Playing: Some Noha Title";
+String globalNohaArtistName = "Noha Artist";
+String? globalNohaImageUrl =
+    'https://algodream.in/admin/uploads/default_art.png';
 
 // Reference to the navigator key defined in main.dart
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -135,9 +139,10 @@ class _PersistentMiniPlayerState extends State<PersistentMiniPlayer>
     navigatorKey.currentState?.push(
       MaterialPageRoute(
         builder:
-            (context) => FullMarsiyaAudioPlay(
+            (context) => FullAudioPlayer(
               audioId: audioId,
               autoPlay: true, // Continue playback
+              contentType: ContentType.marsiya,
             ),
       ),
     );
@@ -221,6 +226,19 @@ class _PersistentMiniPlayerState extends State<PersistentMiniPlayer>
           return const SizedBox.shrink();
         }
 
+        // Determine if we're playing Marsiya or Noha
+        bool isMarsiya = true;
+        if (audioSource is UriAudioSource) {
+          final tag = audioSource.tag as Map<String, dynamic>?;
+          final contentType = tag?['contentType'] as String?;
+          isMarsiya = contentType != 'ContentType.noha';
+        }
+
+        // Get the appropriate title and artist name based on content type
+        final title = isMarsiya ? globalTrackTitle : globalNohaTitle;
+        final artistName = isMarsiya ? globalArtistName : globalNohaArtistName;
+        final imageUrl = isMarsiya ? globalImageUrl : globalNohaImageUrl;
+
         // Get progress percentage for the progress bar
         final progress =
             _duration.inMilliseconds > 0
@@ -228,331 +246,298 @@ class _PersistentMiniPlayerState extends State<PersistentMiniPlayer>
                 : 0.0;
 
         return Container(
-          height: 72,
-          margin: EdgeInsets.fromLTRB(4, 4, 4, navBarHeight + bottomInset + 8),
+          height: 70,
+          margin: EdgeInsets.fromLTRB(
+            12,
+            4,
+            12,
+            navBarHeight + bottomInset + 8,
+          ),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E1E1E), // Dark background matching nav bar
+            color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 8,
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 10,
                 spreadRadius: 0,
                 offset: const Offset(0, 2),
               ),
             ],
-            border: Border.all(
-              color: primaryColor.withOpacity(0.4),
-              width: 1.5,
-            ),
           ),
-          child: Material(
-            color: Colors.transparent,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(15),
-              child: Stack(
-                children: [
-                  // Main content area with interactive element
-                  InkWell(
-                    onTap: _navigateToFullPlayer,
-                    splashColor: primaryColor.withOpacity(0.1),
-                    highlightColor: Colors.white.withOpacity(0.05),
-                    child: Column(
-                      children: [
-                        // Custom progress bar at the top with smoother corners
-                        Container(
-                          height: 3,
-                          margin: EdgeInsets.symmetric(
-                            horizontal: 0,
-                            vertical: 0,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.2),
-                          ),
-                          alignment: Alignment.centerLeft,
-                          child: LayoutBuilder(
-                            builder: (context, constraints) {
-                              return Container(
-                                width: constraints.maxWidth * progress,
-                                height: 3,
-                                decoration: BoxDecoration(
-                                  color: primaryColor,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: primaryColor.withOpacity(0.4),
-                                      blurRadius: 3,
-                                      spreadRadius: 0,
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // Progress bar at the top
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                  ),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    backgroundColor: Colors.grey.shade100,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Color(0xFF1A8754),
+                    ),
+                    minHeight: 2.5,
+                  ),
+                ),
+              ),
+
+              // Close button in top right corner
+              Positioned(
+                top: -8,
+                right: -8,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 4,
+                        spreadRadius: 0,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: _closeMiniPlayer,
+                      child: Padding(
+                        padding: const EdgeInsets.all(3.0),
+                        child: Icon(
+                          Icons.close,
+                          size: 15,
+                          color: Colors.grey.shade600,
                         ),
-                        // Main content of the mini player
-                        Expanded(
-                          child: Row(
-                            children: [
-                              // Album image with rounded corners and subtle border
-                              Container(
-                                width: 54,
-                                height: 54,
-                                margin: const EdgeInsets.only(left: 8),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: primaryColor.withOpacity(0.4),
-                                    width: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Main content
+              Positioned.fill(
+                top: 2.5, // Adjust for progress bar
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(16),
+                      bottomRight: Radius.circular(16),
+                    ),
+                    onTap: _navigateToFullPlayer,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
+                      child: Row(
+                        children: [
+                          // Album art with better rounded corners
+                          Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 4,
+                                  spreadRadius: 0,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: CachedNetworkImage(
+                                imageUrl:
+                                    imageUrl ??
+                                    'https://algodream.in/admin/uploads/default_art.png',
+                                width: 50,
+                                height: 50,
+                                fit: BoxFit.cover,
+                                placeholder:
+                                    (_, __) => Container(
+                                      color: Colors.grey.shade100,
+                                      child: const Icon(
+                                        Icons.music_note,
+                                        color: Colors.grey,
+                                        size: 20,
+                                      ),
+                                    ),
+                                errorWidget:
+                                    (_, __, ___) => Container(
+                                      color: Colors.grey.shade100,
+                                      child: const Icon(
+                                        Icons.music_note,
+                                        color: Colors.grey,
+                                        size: 20,
+                                      ),
+                                    ),
+                              ),
+                            ),
+                          ),
+
+                          // Song info with better spacing
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12.0,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  // Title with marquee for long titles
+                                  title.length > 15
+                                      ? SizedBox(
+                                        height: 18,
+                                        child: Marquee(
+                                          text: title,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.black87,
+                                          ),
+                                          scrollAxis: Axis.horizontal,
+                                          blankSpace: 20.0,
+                                          velocity: 30.0,
+                                          pauseAfterRound: const Duration(
+                                            seconds: 1,
+                                          ),
+                                          showFadingOnlyWhenScrolling: true,
+                                          fadingEdgeStartFraction: 0.1,
+                                          fadingEdgeEndFraction: 0.1,
+                                        ),
+                                      )
+                                      : Text(
+                                        title,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black87,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+
+                                  const SizedBox(height: 4),
+
+                                  // Artist name with appropriate prefix
+                                  Text(
+                                    isMarsiya
+                                        ? "zakir: $artistName"
+                                        : "reciter: $artistName",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          // Playback controls - more elegant
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Previous button
+                              IconButton(
+                                icon: Icon(
+                                  Icons.skip_previous_rounded,
+                                  color: Colors.grey.shade800,
+                                  size: 24,
+                                ),
+                                onPressed: _handlePreviousTrack,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 36,
+                                  minHeight: 36,
+                                ),
+                                splashRadius: 18,
+                              ),
+
+                              // Play/Pause button with gradient
+                              Container(
+                                width: 40,
+                                height: 40,
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF1A8754),
+                                      Color(0xFF0D9051),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.2),
-                                      blurRadius: 4,
+                                      color: const Color(
+                                        0xFF1A8754,
+                                      ).withOpacity(0.3),
+                                      blurRadius: 8,
                                       spreadRadius: 0,
                                       offset: const Offset(0, 2),
                                     ),
                                   ],
                                 ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: CachedNetworkImage(
-                                    imageUrl:
-                                        globalImageUrl ??
-                                        'https://algodream.in/admin/uploads/default_art.png',
-                                    fit: BoxFit.cover,
-                                    placeholder:
-                                        (context, url) => Container(
-                                          color: Colors.white.withOpacity(0.1),
-                                          child: Icon(
-                                            Icons.music_note,
-                                            color: primaryColor.withOpacity(
-                                              0.7,
-                                            ),
-                                            size: 30,
-                                          ),
-                                        ),
-                                    errorWidget:
-                                        (context, url, error) => Container(
-                                          color: Colors.white.withOpacity(0.1),
-                                          child: Icon(
-                                            Icons.music_note,
-                                            color: primaryColor.withOpacity(
-                                              0.7,
-                                            ),
-                                            size: 30,
-                                          ),
-                                        ),
+                                child: IconButton(
+                                  icon: Icon(
+                                    _isPlaying
+                                        ? Icons.pause_rounded
+                                        : Icons.play_arrow_rounded,
+                                    color: Colors.white,
+                                    size: 22,
                                   ),
+                                  onPressed: () {
+                                    if (_isPlaying) {
+                                      _player.pause();
+                                    } else {
+                                      _player.play();
+                                    }
+                                  },
+                                  padding: EdgeInsets.zero,
+                                  splashRadius: 20,
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              // Track info: title and artist with improved text styling
-                              Expanded(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    SizedBox(
-                                      height: 20,
-                                      child: Marquee(
-                                        text: globalTrackTitle,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.white,
-                                          letterSpacing: 0.3,
-                                        ),
-                                        scrollAxis: Axis.horizontal,
-                                        blankSpace: 40.0,
-                                        velocity: 35.0,
-                                        pauseAfterRound: const Duration(
-                                          seconds: 1,
-                                        ),
-                                        startPadding: 0.0,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      globalArtistName,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w400,
-                                        color: primaryColor.withOpacity(0.9),
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    // Progress text with improved styling
-                                    Row(
-                                      children: [
-                                        Text(
-                                          _formatDuration(_position),
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w500,
-                                            color: Colors.grey[400],
-                                          ),
-                                        ),
-                                        Text(
-                                          " / ",
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: Colors.grey[600],
-                                          ),
-                                        ),
-                                        Text(
-                                          _formatDuration(_duration),
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: Colors.grey[400],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
+
+                              // Next button
+                              IconButton(
+                                icon: Icon(
+                                  Icons.skip_next_rounded,
+                                  color: Colors.grey.shade800,
+                                  size: 24,
                                 ),
-                              ),
-                              // Enhanced playback controls with better visual effects
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // Previous button with ripple effect
-                                  ClipOval(
-                                    child: Material(
-                                      color: Colors.transparent,
-                                      child: InkWell(
-                                        splashColor: primaryColor.withOpacity(
-                                          0.2,
-                                        ),
-                                        child: Container(
-                                          padding: EdgeInsets.all(8),
-                                          child: Icon(
-                                            Icons.skip_previous_rounded,
-                                            color: Colors.white,
-                                            size: 28,
-                                          ),
-                                        ),
-                                        onTap: _handlePreviousTrack,
-                                      ),
-                                    ),
-                                  ),
-                                  // Play/Pause button with animation
-                                  Container(
-                                    width: 42,
-                                    height: 42,
-                                    margin: const EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: primaryColor,
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: primaryColor.withOpacity(0.3),
-                                          blurRadius: 8,
-                                          spreadRadius: 0,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Material(
-                                      color: Colors.transparent,
-                                      child: InkWell(
-                                        borderRadius: BorderRadius.circular(21),
-                                        splashColor: Colors.white.withOpacity(
-                                          0.2,
-                                        ),
-                                        onTap: () async {
-                                          if (_isPlaying) {
-                                            await _player.pause();
-                                          } else {
-                                            await _player.play();
-                                          }
-                                        },
-                                        child: Center(
-                                          child:
-                                              _isBuffering
-                                                  ? SizedBox(
-                                                    width: 20,
-                                                    height: 20,
-                                                    child: CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      valueColor:
-                                                          AlwaysStoppedAnimation<
-                                                            Color
-                                                          >(Colors.white),
-                                                    ),
-                                                  )
-                                                  : AnimatedIcon(
-                                                    icon:
-                                                        AnimatedIcons
-                                                            .play_pause,
-                                                    progress:
-                                                        _animationController,
-                                                    color: Colors.white,
-                                                    size: 28,
-                                                  ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  // Next button with ripple effect
-                                  ClipOval(
-                                    child: Material(
-                                      color: Colors.transparent,
-                                      child: InkWell(
-                                        splashColor: primaryColor.withOpacity(
-                                          0.2,
-                                        ),
-                                        child: Container(
-                                          padding: EdgeInsets.all(8),
-                                          child: Icon(
-                                            Icons.skip_next_rounded,
-                                            color: Colors.white,
-                                            size: 28,
-                                          ),
-                                        ),
-                                        onTap: _handleNextTrack,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                ],
+                                onPressed: _handleNextTrack,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 36,
+                                  minHeight: 36,
+                                ),
+                                splashRadius: 18,
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Close button positioned in the top-right corner
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: ClipOval(
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: _closeMiniPlayer,
-                          splashColor: Colors.red.withOpacity(0.2),
-                          child: Container(
-                            padding: EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.4),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.close,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                          ),
-                        ),
+                        ],
                       ),
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
         );
       },

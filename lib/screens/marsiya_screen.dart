@@ -5,6 +5,7 @@ import 'marsiya_audio_screen.dart';
 import 'intikhaab_screen.dart';
 import 'taht_ul_lafz_screen.dart';
 import 'main_navigation_screen.dart';
+import 'full_audio_player.dart';
 
 class MarsiyaScreen extends StatefulWidget {
   const MarsiyaScreen({Key? key}) : super(key: key);
@@ -358,5 +359,17 @@ class _MarsiyaScreenState extends State<MarsiyaScreen>
         );
       },
     );
+  }
+
+  void _navigateToSection(String section) {
+    switch (section.toLowerCase()) {
+      case 'qasidas':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const MarsiyaAudioScreen()),
+        );
+        break;
+      // ... other cases ...
+    }
   }
 }

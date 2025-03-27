@@ -13,32 +13,44 @@ dependencies:
   cupertino_icons: ^1.0.8
   http: ^1.1.0
   google_fonts: ^5.1.0
-  cached_network_image: ^3.2.3
+  cached_network_image: ^3.4.1
   shimmer: ^3.0.0
   url_launcher: ^6.3.1
-  marquee: ^2.2.3
+  marquee: ^2.3.0
   intl: ^0.18.1
   just_audio: ^0.9.34
   just_audio_background: ^0.0.1-beta.10
-  audio_session: ^0.1.6
+  audio_session: ^0.1.25
   permission_handler: ^11.0.0
-  flutter_svg: ^2.0.7 
+  flutter_svg: ^2.0.17 
   flutter_staggered_animations: ^1.1.1
   typed_data: ^1.3.0  # For Uint8List
   share_plus: ^7.0.2
   fluttertoast: ^8.0.9
   flutter_pdfview: ^1.4.0
   path_provider: ^2.1.5
-
-
-
-
-  
+  flutter_cache_manager: ^3.4.1
+  connectivity_plus: ^5.0.2  # Added for network connectivity check
+  lottie: ^2.7.0  # Added for beautiful animations
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/logo.png"
+  min_sdk_android: 21
+  remove_alpha_ios: true
+  web:
+    generate: false
+  windows:
+    generate: false
+  macos:
+    generate: false
 
 flutter:
   uses-material-design: true
@@ -46,3 +58,5 @@ flutter:
     - assets/images/logo.png
     - assets/images/karbala.jpg
     - assets/images/Adts Logo.png
+    - assets/images/
+    - assets/animations/

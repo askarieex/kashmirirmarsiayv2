@@ -1,7 +1,9 @@
 import 'dart:math';
-
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:http/http.dart' as http;
 
 class GetStartedScreen extends StatefulWidget {
   const GetStartedScreen({super.key});
@@ -16,6 +18,7 @@ class _GetStartedScreenState extends State<GetStartedScreen>
   int _currentPage = 0;
   late AnimationController _animationController;
   late List<Animation<double>> _featureAnimations;
+  bool _isCheckingConnectivity = false;
 
   // Enhanced color palette with better contrast and harmony
   static const Color primaryGreen = Color(0xFF0A8E3D); // Deep Islamic green
@@ -115,6 +118,76 @@ class _GetStartedScreenState extends State<GetStartedScreen>
     _pageController.dispose();
     _animationController.dispose();
     super.dispose();
+  }
+
+  // Method to check internet connectivity before proceeding
+  Future<bool> _checkInternetConnectivity() async {
+    if (_isCheckingConnectivity) return false;
+
+    setState(() {
+      _isCheckingConnectivity = true;
+    });
+
+    try {
+      // First check device connectivity
+      final connectivityResult = await Connectivity().checkConnectivity();
+      debugPrint('Connectivity check result: $connectivityResult');
+
+      // If device shows as not connected, return false
+      if (connectivityResult == ConnectivityResult.none) {
+        setState(() {
+          _isCheckingConnectivity = false;
+        });
+        return false;
+      }
+
+      // Try to ping Google to check for actual internet access
+      try {
+        final response = await http
+            .get(Uri.parse('https://google.com'))
+            .timeout(const Duration(seconds: 2));
+
+        setState(() {
+          _isCheckingConnectivity = false;
+        });
+
+        return response.statusCode == 200;
+      } catch (e) {
+        debugPrint('Internet ping failed: $e');
+        setState(() {
+          _isCheckingConnectivity = false;
+        });
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Error checking connectivity: $e');
+      setState(() {
+        _isCheckingConnectivity = false;
+      });
+      return false;
+    }
+  }
+
+  // Handle the get started button press
+  void _handleGetStarted() async {
+    if (_currentPage < _contents.length - 1) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOut,
+      );
+    } else {
+      // Check internet connectivity before proceeding to main navigation
+      final hasInternet = await _checkInternetConnectivity();
+
+      if (!mounted) return;
+
+      if (hasInternet) {
+        Navigator.pushReplacementNamed(context, '/mainNav');
+      } else {
+        // Show network check screen if no internet
+        Navigator.pushReplacementNamed(context, '/networkCheck');
+      }
+    }
   }
 
   @override
@@ -219,26 +292,44 @@ class _GetStartedScreenState extends State<GetStartedScreen>
                         shadowColor: primaryGreen.withOpacity(0.3),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      onPressed: () {
-                        if (_currentPage < _contents.length - 1) {
-                          _pageController.nextPage(
-                            duration: const Duration(milliseconds: 600),
-                            curve: Curves.easeInOut,
-                          );
-                        } else {
-                          Navigator.pushReplacementNamed(context, '/mainNav');
-                        }
-                      },
-                      child: Text(
-                        _currentPage < _contents.length - 1
-                            ? "Next"
-                            : "Get Started",
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
+                      onPressed:
+                          _isCheckingConnectivity ? null : _handleGetStarted,
+                      child:
+                          _isCheckingConnectivity
+                              ? Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  const Text(
+                                    "Connecting...",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              )
+                              : Text(
+                                _currentPage < _contents.length - 1
+                                    ? "Next"
+                                    : "Get Started",
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
                     ),
                   ),
 

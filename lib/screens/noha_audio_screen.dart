@@ -6,16 +6,17 @@ import 'package:just_audio/just_audio.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../widgets/persistent_mini_player.dart' as player_widgets;
-import '../screens/full_audio_player.dart';
+import 'full_audio_player.dart';
 
-class NohaScreen extends StatefulWidget {
-  const NohaScreen({Key? key}) : super(key: key);
+class NohaAudioScreen extends StatefulWidget {
+  const NohaAudioScreen({Key? key}) : super(key: key);
 
   @override
-  State<NohaScreen> createState() => _NohaScreenState();
+  State<NohaAudioScreen> createState() => _NohaAudioScreenState();
 }
 
-class _NohaScreenState extends State<NohaScreen> with TickerProviderStateMixin {
+class _NohaAudioScreenState extends State<NohaAudioScreen>
+    with TickerProviderStateMixin {
   // API endpoint URL
   final String apiUrl =
       'https://algodream.in/admin/api/get_noha.php?api_key=MOHAMMADASKERYMALIKFROMNOWLARI';
@@ -229,14 +230,32 @@ class _NohaScreenState extends State<NohaScreen> with TickerProviderStateMixin {
     });
 
     try {
-      await _audioPlayer!.setUrl(audioUrl);
+      // Set up audio source with metadata
+      final audioSource = AudioSource.uri(
+        Uri.parse(audioUrl),
+        tag: {
+          'title': noha['title'] ?? 'Unknown Title',
+          'artist': noha['author_name'] ?? 'Unknown Artist',
+          'audioId': noha['id'] ?? '0',
+          'contentType': 'ContentType.noha',
+          'imageUrl': noha['image_url'] ?? '',
+        },
+      );
+
+      await _audioPlayer!.setAudioSource(audioSource);
       await _audioPlayer!.play();
 
       // Update the global variables for the mini player
-      player_widgets.globalNohaTitle = noha['title'] ?? 'Unknown Title';
-      player_widgets.globalNohaArtistName =
-          noha['author_name'] ?? 'Unknown Artist';
-      player_widgets.globalNohaImageUrl = noha['image_url'];
+      if (player_widgets.globalNohaTitle != null) {
+        player_widgets.globalNohaTitle = noha['title'] ?? 'Unknown Title';
+      }
+      if (player_widgets.globalNohaArtistName != null) {
+        player_widgets.globalNohaArtistName =
+            noha['author_name'] ?? 'Unknown Artist';
+      }
+      if (player_widgets.globalNohaImageUrl != null) {
+        player_widgets.globalNohaImageUrl = noha['image_url'];
+      }
 
       // Show the persistent mini player
       player_widgets.showPersistentMiniPlayerNotifier.value = true;
@@ -263,23 +282,35 @@ class _NohaScreenState extends State<NohaScreen> with TickerProviderStateMixin {
     }
   }
 
-  void _playNoha(String nohaId, Map<String, dynamic> nohaData) {
+  void _playNohaFromFullScreen(Map<String, dynamic> nohaData) {
+    if (_audioPlayer != null) {
+      // Stop any currently playing audio
+      _stopAudio();
+    }
+
+    // Update the global variables for the mini player
+    if (player_widgets.globalNohaTitle != null) {
+      player_widgets.globalNohaTitle = nohaData['title'] ?? '';
+    }
+    if (player_widgets.globalNohaArtistName != null) {
+      player_widgets.globalNohaArtistName = nohaData['author_name'] ?? '';
+    }
+    if (player_widgets.globalNohaImageUrl != null) {
+      player_widgets.globalNohaImageUrl = nohaData['image_url'];
+    }
+
+    // Navigate to the full audio player screen
     Navigator.push(
       context,
       MaterialPageRoute(
         builder:
             (context) => FullAudioPlayer(
-              audioId: nohaId,
-              contentType: ContentType.noha,
-              audioData: nohaData,
+              audioId: nohaData['id'],
               autoPlay: true,
+              contentType: ContentType.noha,
             ),
       ),
     );
-    // Update global variables for mini player
-    player_widgets.globalNohaTitle = nohaData['title'] ?? '';
-    player_widgets.globalNohaArtistName = nohaData['author_name'] ?? '';
-    player_widgets.globalNohaImageUrl = nohaData['image_url'];
   }
 
   @override
@@ -519,7 +550,7 @@ class _NohaScreenState extends State<NohaScreen> with TickerProviderStateMixin {
         ],
       ),
       child: InkWell(
-        onTap: () => _playNoha(noha['id'], noha),
+        onTap: () => _playNohaFromFullScreen(noha),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12),

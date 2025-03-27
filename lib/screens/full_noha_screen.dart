@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class TahtUlLafzScreen extends StatefulWidget {
-  const TahtUlLafzScreen({Key? key}) : super(key: key);
+class FullNohaScreen extends StatefulWidget {
+  const FullNohaScreen({Key? key}) : super(key: key);
 
   @override
-  State<TahtUlLafzScreen> createState() => _TahtUlLafzScreenState();
+  State<FullNohaScreen> createState() => _FullNohaScreenState();
 }
 
-class _TahtUlLafzScreenState extends State<TahtUlLafzScreen> {
+class _FullNohaScreenState extends State<FullNohaScreen> {
   bool isLoading = false;
 
   @override
@@ -22,7 +22,7 @@ class _TahtUlLafzScreenState extends State<TahtUlLafzScreen> {
         title: Row(
           children: [
             Text(
-              'تحت اللفظ',
+              'نوحہ',
               style: GoogleFonts.notoNastaliqUrdu(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -31,7 +31,7 @@ class _TahtUlLafzScreenState extends State<TahtUlLafzScreen> {
             ),
             const SizedBox(width: 10),
             Text(
-              'Word Meanings',
+              'Complete Collection',
               style: GoogleFonts.poppins(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
