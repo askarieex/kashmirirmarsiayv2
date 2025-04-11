@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../widgets/wavy_header_clipper.dart';
 import '../widgets/ultra_beautiful_loading_animation.dart';
 import '../models/poster_item.dart';
@@ -14,6 +15,7 @@ import '../models/artist_item.dart';
 import '../models/popup_message.dart'; // Import PopupMessage
 import '../models/paid_promotion.dart'; // Import PaidPromotion
 import '../widgets/beautiful_popup.dart'; // Import BeautifulPopup
+import '../services/profile_service.dart'; // Import the profile service
 import 'view_profile_screen.dart';
 import 'marsiya_screen.dart';
 import 'noha_screen.dart';
@@ -30,6 +32,7 @@ import 'history_screen.dart';
 import '../widgets/quick_actions_bar.dart';
 import '../widgets/sponsored_ad_banner.dart';
 import '../widgets/skeleton_loader.dart'; // Add import for SkeletonLoader
+import 'all_profiles_screen.dart'; // Add this import
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -68,69 +71,22 @@ class _HomeScreenState extends State<HomeScreen>
 
   bool _isLoading = true;
   bool _isLoadingAds = true;
+  bool _isLoadingProfiles = true;
 
-  // Popup message properties
+  // Updated poster and ad items
+  final List<PosterItem> _posters = [];
+  late List<AdBannerItem> _adItems = [];
 
-  final List<PosterItem> _posters = [
-    PosterItem(
-      title: "Upcoming Event",
-      imageUrl:
-          "https://via.placeholder.com/600x300/aaaaaa/000000?text=Banner+1",
-    ),
-    PosterItem(
-      title: "Latest News",
-      imageUrl:
-          "https://via.placeholder.com/600x300/cccccc/000000?text=Banner+2",
-    ),
-    PosterItem(
-      title: "Announcement",
-      imageUrl:
-          "https://via.placeholder.com/600x300/aaaaaa/000000?text=Banner+3",
-    ),
-  ];
+  // Updated profile categories with proper capitalization
+  Map<String, List<ArtistItem>> _profilesByCategory = {
+    'Zakir': [],
+    'Noha Khan': [],
+    'Both': [],
+  };
 
-  final List<ArtistItem> _artists = [
-    ArtistItem(
-      name: "Zakir One",
-      imageUrl: "https://via.placeholder.com/150/FF5722/FFFFFF?text=Z1",
-    ),
-    ArtistItem(
-      name: "Noha Khan Two",
-      imageUrl: "https://via.placeholder.com/150/3F51B5/FFFFFF?text=N2",
-    ),
-    ArtistItem(
-      name: "Zakir Three",
-      imageUrl: "https://via.placeholder.com/150/009688/FFFFFF?text=Z3",
-    ),
-    ArtistItem(
-      name: "Noha Khan Four",
-      imageUrl: "https://via.placeholder.com/150/E91E63/FFFFFF?text=N4",
-    ),
-    ArtistItem(
-      name: "Zakir Five",
-      imageUrl: "https://via.placeholder.com/150/4CAF50/FFFFFF?text=Z5",
-    ),
-    ArtistItem(
-      name: "Noha Khan Six",
-      imageUrl: "https://via.placeholder.com/150/2196F3/FFFFFF?text=N6",
-    ),
-    ArtistItem(
-      name: "Zakir Seven",
-      imageUrl: "https://via.placeholder.com/150/FFC107/000000?text=Z7",
-    ),
-    ArtistItem(
-      name: "Noha Khan Eight",
-      imageUrl: "https://via.placeholder.com/150/9C27B0/FFFFFF?text=N8",
-    ),
-    ArtistItem(
-      name: "Zakir Nine",
-      imageUrl: "https://via.placeholder.com/150/607D8B/FFFFFF?text=Z9",
-    ),
-    ArtistItem(
-      name: "Noha Khan Ten",
-      imageUrl: "https://via.placeholder.com/150/795548/FFFFFF?text=N10",
-    ),
-  ];
+  late final AnimationController _animController;
+  late final Animation<double> _fadeAnimation;
+  late final Animation<double> _scaleAnimation;
 
   final List<Map<String, dynamic>> features = [
     {'label': 'Marsiya', 'icon': Icons.music_note},
@@ -146,13 +102,6 @@ class _HomeScreenState extends State<HomeScreen>
     {'label': 'Community', 'icon': Icons.group},
     {'label': 'History', 'icon': Icons.history},
   ];
-
-  late final AnimationController _animController;
-  late final Animation<double> _fadeAnimation;
-  late final Animation<double> _scaleAnimation;
-
-  // Change from final to late for loading from API
-  late List<AdBannerItem> _adItems = [];
 
   @override
   void initState() {
@@ -181,13 +130,15 @@ class _HomeScreenState extends State<HomeScreen>
     // Set initial loading state
     _isLoading = true;
     _isLoadingAds = true;
+    _isLoadingProfiles = true;
 
     // Delay data fetching to show skeleton loader
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    Future.delayed(const Duration(milliseconds: 1000), () {
       if (mounted) {
         _fetchPrayerTimes();
         _fetchPosters();
         _fetchPaidPromotions();
+        _fetchProfilesByCategory();
         _setupPopupMessage();
       }
     });
@@ -211,8 +162,10 @@ class _HomeScreenState extends State<HomeScreen>
   void _startArtistAutoScroll() {
     _artistAutoScrollTimer?.cancel();
     _artistAutoScrollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (_artists.isEmpty) return;
-      _currentArtistIndex = (_currentArtistIndex + 1) % _artists.length;
+      if (_profilesByCategory['Both']?.isEmpty ?? true) return;
+      _currentArtistIndex =
+          (_currentArtistIndex + 1) %
+          (_profilesByCategory['Both']?.length ?? 1);
       const double offsetPerItem = 95.0;
       if (mounted && _artistScrollController.hasClients) {
         _artistScrollController.animateTo(
@@ -228,14 +181,16 @@ class _HomeScreenState extends State<HomeScreen>
     setState(() {
       _isLoading = true;
       _isLoadingAds = true;
+      _isLoadingProfiles = true;
     });
 
     try {
       // Add a small delay to ensure the skeleton loader is visible
-      await Future.delayed(const Duration(milliseconds: 1500));
+      await Future.delayed(const Duration(milliseconds: 1000));
       await _fetchPrayerTimes();
       await _fetchPosters();
       await _fetchPaidPromotions();
+      await _fetchProfilesByCategory();
     } finally {
       setState(() {
         _isLoading = false;
@@ -433,75 +388,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 child: SlideAnimation(
                                   verticalOffset: 30,
                                   child: FadeInAnimation(
-                                    child: Container(
-                                      margin: const EdgeInsets.only(
-                                        left: 16,
-                                        right: 16,
-                                        bottom: 20,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(20),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(
-                                              0.08,
-                                            ),
-                                            blurRadius: 10,
-                                            spreadRadius: 0,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Padding(
-                                            padding: const EdgeInsets.fromLTRB(
-                                              16,
-                                              14,
-                                              16,
-                                              4,
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                Container(
-                                                  width: 4,
-                                                  height: 18,
-                                                  decoration: BoxDecoration(
-                                                    color: primaryColor,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          2,
-                                                        ),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Text(
-                                                  "Quick Access",
-                                                  style: GoogleFonts.poppins(
-                                                    color: textPrimaryColor,
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w600,
-                                                    letterSpacing: 0.5,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          Padding(
-                                            padding: const EdgeInsets.fromLTRB(
-                                              12,
-                                              4,
-                                              12,
-                                              16,
-                                            ),
-                                            child: _buildQuickActionsRow(),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
+                                    child: _buildQuickAccessSection(),
                                   ),
                                 ),
                               ),
@@ -786,184 +673,107 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildHeaderSection(double screenWidth, double screenHeight) {
     return Column(
       children: [
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(24),
-              bottomRight: Radius.circular(24),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              // Background decoration with enhanced pattern
-              Positioned.fill(
-                child: CustomPaint(painter: LightHeaderPatternPainter()),
-              ),
-
-              // Content
-              Column(
-                children: [
-                  // Compact App Bar with reduced height
                   SafeArea(
                     bottom: false,
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          IconButton(
-                            icon: Icon(
-                              Icons.menu,
-                              color: primaryColor,
-                              size: 22,
-                            ),
-                            onPressed: () {
+                GestureDetector(
+                  onTap: () {
                               Scaffold.of(context).openDrawer();
                             },
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
+                  child: Icon(Icons.menu, color: primaryColor, size: 28),
                           ),
                           Text(
                             'Kashmiri Marsiya',
                             style: GoogleFonts.poppins(
                               color: primaryColor,
-                              fontSize: 18,
+                    fontSize: 20,
                               fontWeight: FontWeight.w600,
-                              letterSpacing: 0.2,
-                            ),
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              Icons.notifications_none_rounded,
-                              color: primaryColor,
-                              size: 22,
-                            ),
-                            onPressed: () {
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Notifications tapped!'),
-                                ),
-                              );
-                            },
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
+                      const SnackBar(content: Text('Notifications tapped!')),
+                    );
+                  },
+                  child: Icon(
+                    Icons.notifications_none_rounded,
+                    color: primaryColor,
+                    size: 28,
+                  ),
                           ),
                         ],
                       ),
                     ),
                   ),
 
-                  // Combined Date and Prayer Times with optimized compact design
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
-                    child: Container(
+        // Islamic Date Card - Exact green style from image
+        Container(
                       width: double.infinity,
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.7),
-                          width: 1.5,
-                        ),
+            color: primaryColor,
+            borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.03),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
+                color: primaryColor.withOpacity(0.25),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
                           ),
                         ],
                       ),
-                      child: Column(
-                        children: [
-                          // Compact Date Section
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
                             child: Row(
                               children: [
-                                // Smaller calendar icon
-                                Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFEAF5F0),
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: primaryColor.withOpacity(0.12),
-                                        blurRadius: 3,
-                                        offset: const Offset(0, 1),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Icon(
-                                    Icons.calendar_today_outlined,
-                                    color: primaryColor,
-                                    size: 14,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+              Icon(Icons.calendar_today, color: Colors.white, size: 22),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        _hijriDate.isNotEmpty
-                                            ? _hijriDate
-                                            : 'Loading date...',
+                    _hijriDate.isNotEmpty ? _hijriDate : '13 Shawwál 1446',
                                         style: GoogleFonts.poppins(
-                                          color: textPrimaryColor,
-                                          fontSize: 14,
+                      color: Colors.white,
+                      fontSize: 16,
                                           fontWeight: FontWeight.w600,
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
                                       ),
                                       Text(
                                         _gregorianDate.isNotEmpty
                                             ? _gregorianDate
-                                            : 'Please wait...',
+                        : '11 April 2025',
                                         style: GoogleFonts.poppins(
-                                          color: textSecondaryColor,
-                                          fontSize: 10,
+                      color: Colors.white.withOpacity(0.85),
+                      fontSize: 13,
                                           fontWeight: FontWeight.w400,
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ],
-                                  ),
                                 ),
                               ],
                             ),
                           ),
 
-                          // Elegant slim divider
+        // Clean Prayer Times Section - Matching exactly the UI shown
                           Container(
-                            height: 1,
-                            margin: const EdgeInsets.symmetric(horizontal: 20),
+          width: double.infinity,
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          padding: const EdgeInsets.fromLTRB(8, 16, 8, 16),
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.grey.withOpacity(0.05),
-                                  Colors.grey.withOpacity(0.2),
-                                  Colors.grey.withOpacity(0.05),
-                                ],
-                                stops: const [0.0, 0.5, 1.0],
-                              ),
-                            ),
-                          ),
-
-                          // Compact Prayer Times Section
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
                             child:
                                 _fajr.isEmpty &&
                                         _sunrise.isEmpty &&
@@ -971,185 +781,231 @@ class _HomeScreenState extends State<HomeScreen>
                                         _maghrib.isEmpty &&
                                         _midnight.isEmpty
                                     ? _buildPrayerTimesLoading()
-                                    : _buildCompactPrayerTimesRow(),
-                          ),
-                        ],
+                  : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildPrayerTimeItem(
+                        'Fajr',
+                        _fajr.isNotEmpty ? _fajr : '05:09',
+                        Icons.nightlight_outlined,
                       ),
+                      _buildPrayerTimeItem(
+                        'Sunrise',
+                        _sunrise.isNotEmpty ? _sunrise : '06:05',
+                        Icons.wb_sunny_outlined,
+                      ),
+                      _buildPrayerTimeItem(
+                        'Dhuhr',
+                        _dhuhr.isNotEmpty ? _dhuhr : '12:32',
+                        Icons.sunny,
+                      ),
+                      _buildPrayerTimeItem(
+                        'Maghrib',
+                        _maghrib.isNotEmpty ? _maghrib : '18:59',
+                        Icons.nightlight_round,
+                      ),
+                      _buildPrayerTimeItem(
+                        'Midnight',
+                        _midnight.isNotEmpty ? _midnight : '00:32',
+                        Icons.bedtime_outlined,
+                      ),
+                    ],
+                  ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPrayerTimeItem(String name, String time, IconData icon) {
+    return Column(
+      children: [
+        Icon(icon, color: primaryColor.withOpacity(0.7), size: 18),
+        const SizedBox(height: 6),
+        Text(
+          time,
+          style: GoogleFonts.poppins(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: textPrimaryColor,
+          ),
+        ),
+        Text(
+          name,
+          style: GoogleFonts.poppins(
+            fontSize: 11,
+            fontWeight: FontWeight.w400,
+            color: textSecondaryColor,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Create custom QuickActionsRow widget
+  Widget _buildQuickAccessSection() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Row(
+      children: [
+                Container(
+                  width: 4,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: primaryColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 10),
+        Text(
+                  "Quick Access",
+          style: GoogleFonts.poppins(
+                    color: textPrimaryColor,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+            child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+                _buildQuickAccessItem(
+                  icon: Icons.music_note,
+                  title: 'Marsiya',
+                  color: const Color(0xFF00875A), // Primary green
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MarsiyaScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildQuickAccessItem(
+                  icon: Icons.headphones,
+                  title: 'Noha',
+                  color: const Color(0xFF2196F3), // Bright blue
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const NohaScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickAccessItem({
+    required IconData icon,
+    required String title,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 110,
+          margin: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.25),
+                blurRadius: 8,
+                spreadRadius: 0,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(child: Icon(icon, color: Colors.white, size: 24)),
+              ),
+              const SizedBox(height: 12),
+        Text(
+                title,
+          style: GoogleFonts.poppins(
+                  color: Colors.white,
+            fontWeight: FontWeight.w600,
+                  fontSize: 18,
+          ),
+        ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+        Text(
+                    'Explore',
+          style: GoogleFonts.poppins(
+                      color: Colors.white.withOpacity(0.9),
+                      fontWeight: FontWeight.w400,
+                      fontSize: 13,
                     ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.arrow_forward,
+                    color: Colors.white.withOpacity(0.9),
+                    size: 14,
                   ),
                 ],
               ),
             ],
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildPrayerTimesCard(double screenWidth) {
-    return Container(
-      width: screenWidth * 0.94,
-      margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.03),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            spreadRadius: 0,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Prayer times content (green line removed)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-            child:
-                _fajr.isEmpty &&
-                        _sunrise.isEmpty &&
-                        _dhuhr.isEmpty &&
-                        _maghrib.isEmpty &&
-                        _midnight.isEmpty
-                    ? _buildPrayerTimesLoading()
-                    : _buildPrayerTimesContent(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPrayerTimesLoading() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        SizedBox(
-          width: 12,
-          height: 12,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          'Loading prayer times...',
-          style: GoogleFonts.poppins(
-            color: textSecondaryColor,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPrayerTimesContent() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _buildCompactPrayerTimeBlock(
-          'Fajr',
-          _fajr,
-          Icons.nightlight_outlined,
-          Color(0xFFE0E7FF),
-        ),
-        _buildCompactPrayerTimeBlock(
-          'Sunrise',
-          _sunrise,
-          Icons.wb_sunny_outlined,
-          Color(0xFFFFEDDE),
-        ),
-        _buildCompactPrayerTimeBlock(
-          'Dhuhr',
-          _dhuhr,
-          Icons.sunny,
-          Color(0xFFFFF8DD),
-        ),
-        _buildCompactPrayerTimeBlock(
-          'Maghrib',
-          _maghrib,
-          Icons.nightlight_round,
-          Color(0xFFDDF4FF),
-        ),
-        _buildCompactPrayerTimeBlock(
-          'Midnight',
-          _midnight,
-          Icons.bedtime_outlined,
-          Color(0xFFE4E4F2),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCompactPrayerTimeBlock(
-    String name,
-    String time,
-    IconData icon,
-    Color bgColor,
-  ) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Icon with circle background - enhanced
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: bgColor.withOpacity(0.5),
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 4,
-                spreadRadius: 0,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Icon(icon, size: 18, color: primaryColor.withOpacity(0.8)),
-          ),
-        ),
-        const SizedBox(height: 5),
-        // Time display - enhanced
-        Text(
-          time,
-          style: GoogleFonts.poppins(
-            color: textPrimaryColor,
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        // Prayer name - enhanced
-        Text(
-          name,
-          style: GoogleFonts.poppins(
-            color: textSecondaryColor,
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
     );
   }
 
   Widget _buildTopZakirSection() {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      margin: const EdgeInsets.only(bottom: 8),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
             child: Row(
               children: [
                 Container(
                   width: 4,
-                  height: 20,
+                  height: 18,
                   decoration: BoxDecoration(
                     color: primaryColor,
                     borderRadius: BorderRadius.circular(2),
@@ -1168,134 +1024,150 @@ class _HomeScreenState extends State<HomeScreen>
                 const Spacer(),
                 TextButton(
                   onPressed: () {
-                    // Navigate to see all
+                    // Navigate to the all profiles screen
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AllProfilesScreen(),
+                      ),
+                    );
                   },
                   child: Text(
                     "See All",
-                    style: TextStyle(
+                    style: GoogleFonts.poppins(
                       color: primaryColor,
                       fontWeight: FontWeight.w500,
+                      fontSize: 14,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          SizedBox(
-            height: 120, // Reduced from 125
-            child: ListView.builder(
+          Container(
+            height:
+                90, // Reduced height from 100 since we removed category badge
+            margin: const EdgeInsets.only(
+              bottom: 12,
+            ), // Bottom margin for spacing
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 6,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child:
+                _isLoadingProfiles
+                    ? Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                      ),
+                    )
+                    : _profilesByCategory['Both']?.isEmpty ?? true
+                    ? Center(
+                      child: Text(
+                        'No profiles available',
+                        style: GoogleFonts.poppins(
+                          color: textSecondaryColor,
+                          fontSize: 14,
+                        ),
+                      ),
+                    )
+                    : ListView.builder(
               controller: _artistScrollController,
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.only(
-                left: 12,
-                right: 12,
-                bottom: 4, // Reduced from 6
-                top: 6, // Reduced from 8
-              ),
-              itemCount: _artists.length,
-              itemBuilder: (context, index) {
-                final artist = _artists[index];
-                return AnimationConfiguration.staggeredList(
-                  position: index,
-                  duration: const Duration(milliseconds: 500),
-                  child: SlideAnimation(
-                    horizontalOffset: 50.0,
-                    child: FadeInAnimation(
-                      child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: GestureDetector(
+                      itemCount: _profilesByCategory['Both']?.length ?? 0,
+                      itemBuilder: (context, index) {
+                        final profile = _profilesByCategory['Both']![index];
+                        return _buildArtistItem(profile);
+                      },
+                    ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildArtistItem(ArtistItem artist) {
+    return GestureDetector(
                           onTap: () {
+        // Navigate to the profile view screen
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder:
-                                    (context) =>
-                                        ViewProfileScreen(artist: artist),
+            builder: (context) => ViewProfileScreen(profileId: artist.id),
                               ),
                             );
                           },
+      child: Container(
+        width: 85, // Reduced from 90
+        margin: const EdgeInsets.symmetric(horizontal: 8),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+            // Profile image with shadow and border
                               Container(
-                                height: 75,
-                                width: 75,
+              width: 62, // Slightly larger than 60
+              height: 62, // Slightly larger than 60
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: 3,
-                                  ),
+                border: Border.all(color: primaryColor, width: 2),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.15),
-                                      spreadRadius: 0,
+                    color: Colors.black.withOpacity(0.1),
                                       blurRadius: 8,
                                       offset: const Offset(0, 3),
                                     ),
-                                  ],
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                    colors: [
-                                      primaryColor.withOpacity(0.2),
-                                      Colors.white,
-                                    ],
-                                  ),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(3.0),
-                                  child: CircleAvatar(
-                                    radius: 34,
-                                    backgroundImage: NetworkImage(
-                                      artist.imageUrl,
-                                    ),
-                                    backgroundColor: Colors.grey.shade200,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Container(
-                                constraints: const BoxConstraints(maxWidth: 90),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: primaryColor,
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 4,
-                                      spreadRadius: 0,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Text(
-                                  artist.name,
-                                  textAlign: TextAlign.center,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.poppins(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
+                ],
+              ),
+              child: ClipOval(
+                child: CachedNetworkImage(
+                  imageUrl: artist.imageUrl,
+                  fit: BoxFit.cover,
+                  placeholder:
+                      (context, url) => Container(
+                        color: Colors.grey.shade200,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              primaryColor,
+                            ),
+                            strokeWidth: 2,
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                );
-              },
+                  errorWidget: (context, url, error) {
+                    return Container(
+                      color: Colors.grey.shade200,
+                      child: const Icon(Icons.person, color: Colors.grey),
+                    );
+                  },
+                ),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 6),
+            // Just show the name - no category badge
+            Text(
+                                  artist.name,
+                                  style: GoogleFonts.poppins(
+                fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                color: textPrimaryColor,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1304,7 +1176,10 @@ class _HomeScreenState extends State<HomeScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          margin: const EdgeInsets.only(top: 8), // Added top margin for spacing
+          child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
@@ -1326,26 +1201,15 @@ class _HomeScreenState extends State<HomeScreen>
                   letterSpacing: 0.5,
                 ),
               ),
-              const Spacer(),
-              TextButton(
-                onPressed: () {
-                  // Navigate to see all featured content
-                },
-                child: Text(
-                  "See All",
-                  style: TextStyle(
-                    color: primaryColor,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
             ],
           ),
         ),
-        _buildBannerCarousel(),
-        const SizedBox(height: 12),
+        ),
+        // Added container with fixed height to prevent overflow
+        Container(height: 210, child: _buildBannerCarousel()),
+        // Rest of content remains the same
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: [
               Container(
@@ -1386,23 +1250,43 @@ class _HomeScreenState extends State<HomeScreen>
               height: 120,
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 20), // Add extra space at the bottom
       ],
     );
   }
 
   Widget _buildBannerCarousel() {
     return Column(
+      mainAxisSize: MainAxisSize.min, // Use min size to prevent expansion
       children: [
         SizedBox(
           height: 180,
           child: PageView.builder(
             controller: _pageController,
-            itemCount: _posters.length,
+            itemCount: _posters.length > 0 ? _posters.length : 1,
             onPageChanged: (index) {
               setState(() => _currentPage = index);
             },
             itemBuilder: (context, index) {
+              if (_posters.isEmpty) {
+                // Handle empty state
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'No content available',
+                      style: GoogleFonts.poppins(
+                        color: textSecondaryColor,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                );
+              }
+
               return AnimationConfiguration.staggeredList(
                 position: index,
                 duration: const Duration(milliseconds: 500),
@@ -1416,22 +1300,28 @@ class _HomeScreenState extends State<HomeScreen>
             },
           ),
         ),
-        const SizedBox(height: 8),
-        Row(
+        if (_posters.length >
+            1) // Only show indicators if there are multiple posters
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 4),
+            child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize:
+                  MainAxisSize.min, // Use min size to prevent expansion
           children: List.generate(_posters.length, (index) {
             final isActive = index == _currentPage;
             return AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               margin: const EdgeInsets.symmetric(horizontal: 4),
-              width: isActive ? 24 : 8,
-              height: 8,
+                  width: isActive ? 20 : 6, // Slightly smaller dots
+                  height: 6, // Fixed smaller height
               decoration: BoxDecoration(
                 color: isActive ? primaryColor : Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(12),
               ),
             );
           }),
+            ),
         ),
       ],
     );
@@ -1491,6 +1381,24 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                     );
                   },
+                  errorBuilder: (context, error, stackTrace) {
+                    print('Error loading poster image: $error');
+                    return Container(
+                      width: double.infinity,
+                      height: 180,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Center(
+                        child: Icon(
+                          Icons.image_not_supported,
+                          color: Colors.grey,
+                          size: 40,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
               Positioned.fill(
@@ -1519,7 +1427,7 @@ class _HomeScreenState extends State<HomeScreen>
                       poster.title,
                       style: GoogleFonts.poppins(
                         color: Colors.white,
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.5,
                         shadows: [
@@ -1530,6 +1438,8 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                         ],
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 10),
                     Container(
@@ -1758,268 +1668,24 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // Create custom QuickActionsRow widget
-  Widget _buildQuickActionsRow() {
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildQuickActionItem(
-            icon: Icons.music_note_rounded,
-            iconBackground: const Color(0xFF00875A),
-            label: 'Marsiya',
-            description: 'Explore',
-            onTap: () {
-              Navigator.push(
-                context,
-                PageRouteBuilder(
-                  pageBuilder:
-                      (context, animation, secondaryAnimation) =>
-                          const MarsiyaScreen(),
-                  transitionsBuilder: (
-                    context,
-                    animation,
-                    secondaryAnimation,
-                    child,
-                  ) {
-                    return FadeTransition(opacity: animation, child: child);
-                  },
-                  transitionDuration: const Duration(milliseconds: 500),
-                ),
-              );
-            },
-          ),
-          _buildQuickActionItem(
-            icon: Icons.headphones_rounded,
-            iconBackground: const Color(0xFF2C7695),
-            label: 'Noha',
-            description: 'Explore',
-            onTap: () {
-              Navigator.push(
-                context,
-                PageRouteBuilder(
-                  pageBuilder:
-                      (context, animation, secondaryAnimation) =>
-                          const NohaScreen(),
-                  transitionsBuilder: (
-                    context,
-                    animation,
-                    secondaryAnimation,
-                    child,
-                  ) {
-                    return FadeTransition(opacity: animation, child: child);
-                  },
-                  transitionDuration: const Duration(milliseconds: 500),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActionItem({
-    required IconData icon,
-    required Color iconBackground,
-    required String label,
-    required String description,
-    required VoidCallback onTap,
-  }) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [iconBackground.withOpacity(0.9), iconBackground],
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: iconBackground.withOpacity(0.25),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              // Background decorative circles
-              Positioned(
-                top: -15,
-                right: -15,
-                child: Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.1),
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: -20,
-                left: -20,
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.08),
-                  ),
-                ),
-              ),
-              // Content
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 16,
-                  horizontal: 12,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.25),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(icon, color: Colors.white, size: 24),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      label,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      description,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
-                        color: Colors.white.withOpacity(0.85),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Icon(
-                        Icons.arrow_forward,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // New compact prayer times row with optimized layout
-  Widget _buildCompactPrayerTimesRow() {
+  Widget _buildPrayerTimesLoading() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _buildTinyPrayerTimeBlock(
-          'Fajr',
-          _fajr,
-          Icons.nightlight_outlined,
-          Color(0xFFE0E7FF),
-        ),
-        _buildTinyPrayerTimeBlock(
-          'Sunrise',
-          _sunrise,
-          Icons.wb_sunny_outlined,
-          Color(0xFFFFEDDE),
-        ),
-        _buildTinyPrayerTimeBlock(
-          'Dhuhr',
-          _dhuhr,
-          Icons.sunny,
-          Color(0xFFFFF8DD),
-        ),
-        _buildTinyPrayerTimeBlock(
-          'Maghrib',
-          _maghrib,
-          Icons.nightlight_round,
-          Color(0xFFDDF4FF),
-        ),
-        _buildTinyPrayerTimeBlock(
-          'Midnight',
-          _midnight,
-          Icons.bedtime_outlined,
-          Color(0xFFE4E4F2),
-        ),
-      ],
-    );
-  }
-
-  // New smaller prayer time blocks for more compact layout
-  Widget _buildTinyPrayerTimeBlock(
-    String name,
-    String time,
-    IconData icon,
-    Color bgColor,
-  ) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Smaller icon with optimized design
-        Container(
-          width: 30,
-          height: 30,
-          decoration: BoxDecoration(
-            color: bgColor.withOpacity(0.5),
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 3,
-                spreadRadius: 0,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Icon(icon, size: 14, color: primaryColor.withOpacity(0.8)),
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+        SizedBox(
+          width: 12,
+          height: 12,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
           ),
         ),
-        const SizedBox(height: 2),
-        // Time display
-        Text(
-          time,
-          style: GoogleFonts.poppins(
-            color: textPrimaryColor,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        // Prayer name - smaller font
-        Text(
-          name,
+        const SizedBox(width: 8),
+                    Text(
+          'Loading prayer times...',
           style: GoogleFonts.poppins(
             color: textSecondaryColor,
-            fontSize: 9,
+            fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -2032,71 +1698,96 @@ class _HomeScreenState extends State<HomeScreen>
     try {
       final promotions = await PaidPromotion.fetchPaidPromotions();
 
-      if (mounted) {
-        setState(() {
-          _adItems = promotions.map((promo) => promo.toAdBannerItem()).toList();
+      final List<AdBannerItem> adItems =
+          promotions.map((promo) => promo.toAdBannerItem()).toList();
 
-          // If no promotions are found, use fallback ads
-          if (_adItems.isEmpty) {
-            _setFallbackAds();
-          }
-
+      setState(() {
+        _adItems = adItems;
           _isLoadingAds = false;
         });
-      }
     } catch (e) {
-      debugPrint('Error loading paid promotions: $e');
-      // Use fallback ads in case of error
-      if (mounted) {
-        setState(() {
-          _setFallbackAds();
-          _isLoadingAds = false;
-        });
-      }
+      debugPrint('Error fetching paid promotions: $e');
+      setState(() => _isLoadingAds = false);
     }
   }
 
-  // Fallback ads in case API fails
-  void _setFallbackAds() {
-    _adItems = [
-      AdBannerItem(
-        imageUrl:
-            'https://images.unsplash.com/photo-1569949381669-ecf31ae8e613',
-        title: 'Special Muharram Collection',
-        description:
-            'Explore our vast collection of exclusive marsiya and noha',
-        onTap: () async {
-          final url = Uri.parse('https://example.com/special-collection');
-          if (await canLaunchUrl(url)) {
-            await launchUrl(url);
+  Future<void> _fetchProfilesByCategory() async {
+    try {
+      // Use random profiles API instead of category-based
+      print('Using random profiles API instead of category-based');
+      final randomProfiles = await ProfileService.getRandomProfiles();
+
+      if (randomProfiles.isEmpty) {
+        print('No random profiles found');
+        setState(() {
+          _isLoadingProfiles = false;
+        });
+        return;
+      }
+
+      // Group profiles by category
+      final Map<String, List<ArtistItem>> profiles = {
+        'Zakir': [],
+        'Noha Khan': [],
+        'Both': [],
+      };
+
+      for (final profile in randomProfiles) {
+        // Normalize category name to match our display categories
+        String displayCategory;
+        switch (profile.category.toLowerCase()) {
+          case 'zakir':
+            displayCategory = 'Zakir';
+            break;
+          case 'noha khan':
+            displayCategory = 'Noha Khan';
+            break;
+          case 'both':
+            displayCategory = 'Both';
+            break;
+          default:
+            displayCategory = 'Other';
+        }
+
+        // Add to corresponding category
+        if (profiles.containsKey(displayCategory)) {
+          profiles[displayCategory]!.add(profile);
+        } else if (displayCategory == 'Other') {
+          // For other categories, decide where to place them
+          if (profile.category.toLowerCase().contains('zakir')) {
+            profiles['Zakir']!.add(profile);
+          } else if (profile.category.toLowerCase().contains('noha')) {
+            profiles['Noha Khan']!.add(profile);
+          } else {
+            // Default to Both if can't determine
+            profiles['Both']!.add(profile);
           }
-        },
-      ),
-      AdBannerItem(
-        imageUrl:
-            'https://images.unsplash.com/photo-1566296412153-9de7ba8b6825',
-        title: 'Karbala Memorial Event',
-        description: 'Join us for a special gathering this Muharram',
-        onTap: () async {
-          final url = Uri.parse('https://example.com/karbala-event');
-          if (await canLaunchUrl(url)) {
-            await launchUrl(url);
-          }
-        },
-      ),
-      AdBannerItem(
-        imageUrl:
-            'https://images.unsplash.com/photo-1488372759477-a7f4aa078cb6',
-        title: 'Premium Islamic Books',
-        description: 'Exclusive collection of religious literature',
-        onTap: () async {
-          final url = Uri.parse('https://example.com/islamic-books');
-          if (await canLaunchUrl(url)) {
-            await launchUrl(url);
-          }
-        },
-      ),
-    ];
+        }
+      }
+
+      // Make sure all profiles are displayed on the home screen
+      // Instead of just showing "Both" category profiles, show all profiles in the top section
+      List<ArtistItem> allProfiles = [...randomProfiles];
+
+      print('Processed ${randomProfiles.length} random profiles:');
+      print('All profiles for display: ${allProfiles.length}');
+      print(
+        'By category - Zakir: ${profiles['Zakir']?.length}, Noha Khan: ${profiles['Noha Khan']?.length}, Both: ${profiles['Both']?.length}',
+      );
+
+      setState(() {
+        // Store categorized profiles for the All Profiles screen
+        _profilesByCategory = profiles;
+
+        // For home screen display, override 'Both' to show all profiles
+        _profilesByCategory['Both'] = allProfiles;
+
+        _isLoadingProfiles = false;
+      });
+    } catch (e) {
+      debugPrint('Error fetching profiles: $e');
+      setState(() => _isLoadingProfiles = false);
+    }
   }
 }
 

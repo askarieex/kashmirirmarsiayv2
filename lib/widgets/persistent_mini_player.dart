@@ -4,16 +4,55 @@ import 'dart:async';
 import 'package:marquee/marquee.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../screens/full_marsiya_audio_play.dart';
+import '../screens/full_noha_audio_play.dart';
 
 /// Global notifier to control the visibility of the persistent mini player.
 ValueNotifier<bool> showPersistentMiniPlayerNotifier = ValueNotifier<bool>(
   true,
 );
 
-/// Global metadata variables to be updated from your full player screen.
+/// Function to ensure mini-player is shown when audio is playing
+void showMiniPlayer() {
+  showPersistentMiniPlayerNotifier.value = true;
+}
+
+/// Coordinate playback between Noha and Marsiya players to ensure only one is active
+void coordPlayerPlayback(bool playNoha) {
+  if (playNoha) {
+    // If we want to play noha, pause marsiya player if it's playing
+    if (globalAudioPlayer.playing) {
+      globalAudioPlayer.pause();
+      print("Paused Marsiya player to play Noha");
+    }
+  } else {
+    // If we want to play marsiya, pause noha player if it's playing
+    if (globalNohaPlayer.playing) {
+      globalNohaPlayer.pause();
+      print("Paused Noha player to play Marsiya");
+    }
+  }
+}
+
+/// Pause all audio players (useful when you want to silence everything)
+void pauseAllPlayers() {
+  if (globalAudioPlayer.playing) {
+    globalAudioPlayer.pause();
+  }
+  if (globalNohaPlayer.playing) {
+    globalNohaPlayer.pause();
+  }
+}
+
+/// Global metadata variables for marsiya
 String globalTrackTitle = "Now Playing: Some Title";
 String globalArtistName = "zakir";
 String? globalImageUrl = 'https://algodream.in/admin/uploads/default_art.png';
+
+/// Global metadata variables for noha
+String globalNohaTitle = "Unknown Noha";
+String globalNohaArtistName = "Unknown Artist";
+String globalNohaImageUrl =
+    'https://algodream.in/admin/uploads/default_art.png';
 
 // Reference to the navigator key defined in main.dart
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -42,12 +81,23 @@ class _PersistentMiniPlayerState extends State<PersistentMiniPlayer>
   StreamSubscription<bool>? _shuffleModeEnabledSubscription;
   StreamSubscription<LoopMode>? _loopModeSubscription;
 
-  // Reference to the global player
-  AudioPlayer get _player => globalAudioPlayer;
+  // Add subscriptions to monitor both players
+  StreamSubscription<PlayerState>? _marsiyaPlayerStateSubscription;
+  StreamSubscription<PlayerState>? _nohaPlayerStateSubscription;
+
+  // Flag to track which player is active
+  bool _isNohaPlayerActive = false;
+
+  // Reference to the active player
+  AudioPlayer get _player =>
+      _isNohaPlayerActive ? globalNohaPlayer : globalAudioPlayer;
 
   @override
   void initState() {
     super.initState();
+    // Check which player is active
+    _checkActivePlayer();
+
     // Initialize animation controller for the play/pause button
     _animationController = AnimationController(
       vsync: this,
@@ -59,7 +109,77 @@ class _PersistentMiniPlayerState extends State<PersistentMiniPlayer>
       _animationController.forward();
     }
 
+    // Monitor both players to detect changes in active player
+    _setupPlayerMonitoring();
+
     // Subscribe to the player's streams
+    _setupPlayerListeners();
+  }
+
+  void _setupPlayerMonitoring() {
+    // Monitor both players to detect changes in active status
+    _marsiyaPlayerStateSubscription = globalAudioPlayer.playerStateStream.listen(
+      (state) {
+        if (state.playing && _isNohaPlayerActive) {
+          // Marsiya player started playing, switch to it
+          setState(() {
+            _isNohaPlayerActive = false;
+            _setupPlayerListeners(); // Re-attach listeners to the active player
+          });
+        }
+      },
+    );
+
+    _nohaPlayerStateSubscription = globalNohaPlayer.playerStateStream.listen((
+      state,
+    ) {
+      if (state.playing && !_isNohaPlayerActive) {
+        // Noha player started playing, switch to it
+        setState(() {
+          _isNohaPlayerActive = true;
+          _setupPlayerListeners(); // Re-attach listeners to the active player
+        });
+      }
+    });
+  }
+
+  void _checkActivePlayer() {
+    // Check if Noha player has content
+    final nohaSource = globalNohaPlayer.audioSource;
+    final marsiyaSource = globalAudioPlayer.audioSource;
+    final nohaPlaying = globalNohaPlayer.playing;
+    final marsiyaPlaying = globalAudioPlayer.playing;
+
+    // If one is playing, use that one
+    if (nohaPlaying && !marsiyaPlaying) {
+      _isNohaPlayerActive = true;
+    } else if (marsiyaPlaying && !nohaPlaying) {
+      _isNohaPlayerActive = false;
+    }
+    // If both or neither are playing, check if they have content
+    else {
+      // If both have content, prefer the one more recently played or the noha player
+      if (nohaSource != null && marsiyaSource != null) {
+        _isNohaPlayerActive = nohaPlaying || !marsiyaPlaying;
+      } else {
+        // Otherwise use the one that has content
+        _isNohaPlayerActive = nohaSource != null;
+      }
+    }
+
+    // For debugging
+    print("Active player: ${_isNohaPlayerActive ? 'Noha' : 'Marsiya'}");
+    print("Noha player has content: ${nohaSource != null}");
+    print("Marsiya player has content: ${marsiyaSource != null}");
+    print("Noha player is playing: $nohaPlaying");
+    print("Marsiya player is playing: $marsiyaPlaying");
+  }
+
+  void _setupPlayerListeners() {
+    // Cancel any existing subscriptions
+    _disposePlayerListeners();
+
+    // Subscribe to the active player's streams
     _positionSubscription = _player.positionStream.listen((pos) {
       if (mounted) {
         setState(() => _position = pos);
@@ -101,13 +221,19 @@ class _PersistentMiniPlayerState extends State<PersistentMiniPlayer>
     });
   }
 
-  @override
-  void dispose() {
+  void _disposePlayerListeners() {
     _positionSubscription?.cancel();
     _durationSubscription?.cancel();
     _playerStateSubscription?.cancel();
     _shuffleModeEnabledSubscription?.cancel();
     _loopModeSubscription?.cancel();
+  }
+
+  @override
+  void dispose() {
+    _disposePlayerListeners();
+    _marsiyaPlayerStateSubscription?.cancel();
+    _nohaPlayerStateSubscription?.cancel();
     _animationController.dispose();
     super.dispose();
   }
@@ -123,7 +249,12 @@ class _PersistentMiniPlayerState extends State<PersistentMiniPlayer>
     final audioSource = _player.audioSource;
     if (audioSource is UriAudioSource) {
       final tag = audioSource.tag as Map<String, dynamic>?;
-      return tag?['audioId'] as String? ?? "1"; // Default to "1" if not found
+      // For noha player
+      if (_isNohaPlayerActive) {
+        return tag?['nohaId']?.toString() ?? "1"; // Default to "1" if not found
+      }
+      // For marsiya player
+      return tag?['audioId']?.toString() ?? "1"; // Default to "1" if not found
     }
     return "1"; // Default audio ID
   }
@@ -131,16 +262,24 @@ class _PersistentMiniPlayerState extends State<PersistentMiniPlayer>
   void _navigateToFullPlayer() {
     // Get the current playing audio ID
     String audioId = _getAudioIdFromPlayer();
-    // Use the navigator key to get a navigator context that is guaranteed to exist
-    navigatorKey.currentState?.push(
-      MaterialPageRoute(
-        builder:
-            (context) => FullMarsiyaAudioPlay(
-              audioId: audioId,
-              autoPlay: true, // Continue playback
-            ),
-      ),
-    );
+
+    // Navigate to the appropriate player screen
+    if (_isNohaPlayerActive) {
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(
+          builder:
+              (context) => FullNohaAudioPlay(nohaId: audioId, autoPlay: true),
+        ),
+      );
+    } else {
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(
+          builder:
+              (context) =>
+                  FullMarsiyaAudioPlay(audioId: audioId, autoPlay: true),
+        ),
+      );
+    }
   }
 
   Future<void> _handleNextTrack() async {
@@ -206,6 +345,34 @@ class _PersistentMiniPlayerState extends State<PersistentMiniPlayer>
   Widget build(BuildContext context) {
     // Get bottom inset for proper spacing above nav bar
     final bottomInset = MediaQuery.of(context).padding.bottom;
+
+    // Check both players to see if either has content
+    final nohaHasContent = globalNohaPlayer.audioSource != null;
+    final marsiyaHasContent = globalAudioPlayer.audioSource != null;
+
+    // If both have no content, don't show player
+    if (!nohaHasContent && !marsiyaHasContent) {
+      return const SizedBox.shrink();
+    }
+
+    // Check player states
+    final nohaState = globalNohaPlayer.playerState;
+    final marsiyaState = globalAudioPlayer.playerState;
+
+    // Update active player flag based on current state
+    if (_isNohaPlayerActive && !nohaHasContent) {
+      _isNohaPlayerActive = false;
+      _setupPlayerListeners();
+    } else if (!_isNohaPlayerActive && !marsiyaHasContent && nohaHasContent) {
+      _isNohaPlayerActive = true;
+      _setupPlayerListeners();
+    }
+
+    // Get the appropriate title, artist, and image based on the active player
+    final title = _isNohaPlayerActive ? globalNohaTitle : globalTrackTitle;
+    final artist =
+        _isNohaPlayerActive ? globalNohaArtistName : globalArtistName;
+    final imageUrl = _isNohaPlayerActive ? globalNohaImageUrl : globalImageUrl;
 
     return ValueListenableBuilder<bool>(
       valueListenable: showPersistentMiniPlayerNotifier,
@@ -317,7 +484,7 @@ class _PersistentMiniPlayerState extends State<PersistentMiniPlayer>
                                   borderRadius: BorderRadius.circular(10),
                                   child: CachedNetworkImage(
                                     imageUrl:
-                                        globalImageUrl ??
+                                        imageUrl ??
                                         'https://algodream.in/admin/uploads/default_art.png',
                                     fit: BoxFit.cover,
                                     placeholder:
@@ -355,7 +522,7 @@ class _PersistentMiniPlayerState extends State<PersistentMiniPlayer>
                                     SizedBox(
                                       height: 20,
                                       child: Marquee(
-                                        text: globalTrackTitle,
+                                        text: title,
                                         style: const TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w600,
@@ -373,7 +540,7 @@ class _PersistentMiniPlayerState extends State<PersistentMiniPlayer>
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      globalArtistName,
+                                      artist,
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w400,
@@ -465,6 +632,12 @@ class _PersistentMiniPlayerState extends State<PersistentMiniPlayer>
                                           if (_isPlaying) {
                                             await _player.pause();
                                           } else {
+                                            // Ensure the other player is paused before playing
+                                            if (_isNohaPlayerActive) {
+                                              coordPlayerPlayback(true);
+                                            } else {
+                                              coordPlayerPlayback(false);
+                                            }
                                             await _player.play();
                                           }
                                         },

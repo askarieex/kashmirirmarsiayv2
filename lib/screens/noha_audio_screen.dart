@@ -7,24 +7,24 @@ import 'dart:ui' as ui;
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'full_marsiya_audio_play.dart';
+import 'full_noha_audio_play.dart';
 import 'dart:typed_data';
 import '../widgets/persistent_mini_player.dart';
 
 // Import your bottom navigation targets (if not already imported)
 import 'home_screen.dart';
-import 'noha_screen.dart';
+import 'marsiya_screen.dart';
 
 const Color accentTeal = Color(0xFF008F41);
 
-class MarsiyaAudioScreen extends StatefulWidget {
-  const MarsiyaAudioScreen({super.key});
+class NohaAudioScreen extends StatefulWidget {
+  const NohaAudioScreen({super.key});
 
   @override
-  State<MarsiyaAudioScreen> createState() => _MarsiyaAudioScreenState();
+  State<NohaAudioScreen> createState() => _NohaAudioScreenState();
 }
 
-class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
+class _NohaAudioScreenState extends State<NohaAudioScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late ScrollController _scrollController;
@@ -33,8 +33,8 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
   bool _isLoading = true;
   bool _isLoadingMore = false;
 
-  // List to hold the marsiya audio data from the API.
-  List<Map<String, dynamic>> _marsiyaList = [];
+  // List to hold the noha audio data from the API.
+  List<Map<String, dynamic>> _nohaList = [];
 
   // Filtered list cache to avoid recalculating on every build
   List<Map<String, dynamic>>? _cachedFilteredList;
@@ -62,7 +62,7 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
     });
     _scrollController = ScrollController();
     _scrollController.addListener(_scrollListener);
-    fetchMarsiya();
+    fetchNoha();
   }
 
   void _refreshDataForTab() {
@@ -89,7 +89,7 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
     });
 
     _currentPage++;
-    await fetchMarsiya(page: _currentPage, isLoadMore: true);
+    await fetchNoha(page: _currentPage, isLoadMore: true);
 
     setState(() {
       _isLoadingMore = false;
@@ -97,13 +97,13 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
   }
 
   void _sortByCurrentTab() {
-    if (_marsiyaList.isEmpty) return;
+    if (_nohaList.isEmpty) return;
 
     switch (_tabController.index) {
       case 0: // All - no specific sorting
         break;
       case 1: // Recent
-        _marsiyaList.sort((a, b) {
+        _nohaList.sort((a, b) {
           final dateA =
               DateTime.tryParse(a['uploaded_date'] ?? '') ?? DateTime(1970);
           final dateB =
@@ -112,7 +112,7 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
         });
         break;
       case 2: // Popular
-        _marsiyaList.sort((a, b) {
+        _nohaList.sort((a, b) {
           final viewsA = int.tryParse(a['views']?.toString() ?? '0') ?? 0;
           final viewsB = int.tryParse(b['views']?.toString() ?? '0') ?? 0;
           return viewsB.compareTo(viewsA);
@@ -121,7 +121,7 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
     }
   }
 
-  Future<void> fetchMarsiya({int page = 1, bool isLoadMore = false}) async {
+  Future<void> fetchNoha({int page = 1, bool isLoadMore = false}) async {
     if (!isLoadMore) {
       setState(() {
         _isLoading = true;
@@ -129,13 +129,13 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
       });
     }
 
-    // Adapted URL to support pagination
+    // Using the Noha API endpoint
     final url =
-        "https://algodream.in/admin/api/get_marsiya.php?api_key=MOHAMMADASKERYMALIKFROMNOWLARI&page=${page.toString()}&limit=${_itemsPerPage.toString()}";
+        "https://algodream.in/admin/api/get_noha.php?api_key=MOHAMMADASKERYMALIKFROMNOWLARI&page=${page.toString()}&limit=${_itemsPerPage.toString()}";
 
     try {
       // Try to get from cache first
-      final cacheKey = 'marsiya_page_$page';
+      final cacheKey = 'noha_page_$page';
       final cachedData = await _cacheManager.getSingleFile(url);
 
       String responseBody;
@@ -165,9 +165,9 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
 
         setState(() {
           if (isLoadMore) {
-            _marsiyaList.addAll(newData);
+            _nohaList.addAll(newData);
           } else {
-            _marsiyaList = newData;
+            _nohaList = newData;
           }
 
           _hasMoreData = newData.length == _itemsPerPage;
@@ -187,7 +187,7 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
         });
       }
     } catch (e) {
-      print('Error fetching marsiya: $e');
+      print('Error fetching noha: $e');
       setState(() {
         _isLoading = false;
         _hasMoreData = false;
@@ -261,11 +261,11 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
     }
   }
 
-  List<Map<String, dynamic>> get filteredMarsiyaList {
+  List<Map<String, dynamic>> get filteredNohaList {
     // Return cached result if available and search query hasn't changed
     if (_cachedFilteredList != null) return _cachedFilteredList!;
 
-    List<Map<String, dynamic>> list = _marsiyaList;
+    List<Map<String, dynamic>> list = _nohaList;
     if (_searchQuery.isNotEmpty) {
       list =
           list.where((item) {
@@ -297,16 +297,16 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
   // When an item is tapped, set the global playlist and current index,
   // then navigate to the full player with autoPlay enabled.
   void _onItemTap(Map<String, dynamic> item) {
-    // Stop any playing noha before playing marsiya
-    coordPlayerPlayback(false);
+    // Stop any playing marsiya before playing noha
+    coordPlayerPlayback(true);
 
-    _globalPlaylist = filteredMarsiyaList;
+    _globalPlaylist = filteredNohaList;
     _globalCurrentIndex = _globalPlaylist.indexOf(item);
     Navigator.of(context).push(
       MaterialPageRoute(
         builder:
-            (context) => FullMarsiyaAudioPlay(
-              audioId: item['id'].toString(),
+            (context) => FullNohaAudioPlay(
+              nohaId: item['id'].toString(),
               autoPlay: true,
             ),
       ),
@@ -323,7 +323,7 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
 
   @override
   Widget build(BuildContext context) {
-    List<Map<String, dynamic>> displayedList = filteredMarsiyaList;
+    List<Map<String, dynamic>> displayedList = filteredNohaList;
 
     return Scaffold(
       backgroundColor: Colors.teal.shade50,
@@ -341,18 +341,17 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
                         onRefresh: () async {
                           _currentPage = 1;
                           _hasMoreData = true;
-                          await fetchMarsiya();
+                          await fetchNoha();
                         },
                         child:
                             displayedList.isEmpty
                                 ? _buildEmptyState()
-                                : _buildMarsiyaList(displayedList),
+                                : _buildNohaList(displayedList),
                       ),
             ),
           ],
         ),
       ),
-      // Bottom Navigation Bar REMOVED
     );
   }
 
@@ -404,7 +403,7 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
           const SizedBox(height: 16),
           Text(
             _searchQuery.isEmpty
-                ? "No marsiya audio available"
+                ? "No noha audio available"
                 : "No results found for \"$_searchQuery\"",
             style: TextStyle(
               fontSize: 18,
@@ -433,7 +432,7 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
     );
   }
 
-  Widget _buildMarsiyaList(List<Map<String, dynamic>> displayedList) {
+  Widget _buildNohaList(List<Map<String, dynamic>> displayedList) {
     return AnimationLimiter(
       child: ListView.builder(
         controller: _scrollController,
@@ -457,7 +456,7 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
             duration: const Duration(milliseconds: 500),
             child: SlideAnimation(
               verticalOffset: 50.0,
-              child: FadeInAnimation(child: _buildMarsiyaItem(item)),
+              child: FadeInAnimation(child: _buildNohaItem(item)),
             ),
           );
         },
@@ -505,7 +504,7 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'مرثیہ آڈیو',
+                  'نوحہ آڈیو',
                   style: TextStyle(
                     color: accentTeal,
                     fontWeight: FontWeight.bold,
@@ -515,7 +514,7 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
                   textDirection: ui.TextDirection.rtl,
                 ),
                 Text(
-                  'Marsiya Audio Collection',
+                  'Noha Audio Collection',
                   style: TextStyle(color: Colors.teal.shade700, fontSize: 14),
                 ),
               ],
@@ -571,7 +570,7 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
           },
           style: TextStyle(color: Colors.grey.shade800),
           decoration: InputDecoration(
-            hintText: 'Search marsiya, author...',
+            hintText: 'Search noha, author...',
             hintStyle: TextStyle(color: Colors.grey.shade400),
             prefixIcon: Icon(
               Icons.search,
@@ -675,7 +674,7 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
     );
   }
 
-  Widget _buildMarsiyaItem(Map<String, dynamic> item) {
+  Widget _buildNohaItem(Map<String, dynamic> item) {
     String displayAuthor = "";
     if (item['manual_author'] != null &&
         item['manual_author'].toString().isNotEmpty) {
@@ -752,97 +751,97 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
                   ),
                 ),
                 const SizedBox(width: 12),
-                // Content section with improved layout
+                // Main content
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 12,
-                      horizontal: 4,
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Title with improved text styling
-                        Container(
-                          alignment: Alignment.centerRight,
-                          child: Directionality(
-                            textDirection: ui.TextDirection.rtl,
-                            child: Text(
-                              item['title'] ?? '',
-                              style: const TextStyle(
-                                color: Color(0xFF2D3A3A),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                letterSpacing: 0.2,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
+                        Text(
+                          item['title'] ?? "Untitled Noha",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Color(0xFF333333),
+                            height: 1.2,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 6),
-                        // Author row with improved styling
+                        const SizedBox(height: 4),
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            Text(
-                              displayAuthor,
-                              style: TextStyle(
-                                color: Colors.teal.shade700,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                letterSpacing: 0.1,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
                             Icon(
                               Icons.person,
                               size: 14,
-                              color: Colors.teal.shade400,
+                              color: Colors.grey.shade600,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                displayAuthor,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade700,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
-                        // Details row with elegant styling
-                        Container(
-                          alignment: Alignment.centerRight,
-                          child: Wrap(
-                            alignment: WrapAlignment.end,
-                            spacing: 12,
-                            runSpacing: 4,
-                            children: [
-                              _buildInfoChip(
-                                Icons.calendar_today,
-                                formattedDate,
-                                Colors.grey.shade500,
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            // Views
+                            Icon(
+                              Icons.visibility_outlined,
+                              size: 14,
+                              color: Colors.grey.shade500,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              "$views views",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
                               ),
-                              _buildInfoChip(
-                                Icons.visibility_outlined,
-                                views,
-                                Colors.teal.shade500,
+                            ),
+                            const SizedBox(width: 16),
+                            // Duration
+                            Icon(
+                              Icons.timer_outlined,
+                              size: 14,
+                              color: Colors.grey.shade500,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              duration,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
                               ),
-                              _buildInfoChip(
-                                Icons.access_time,
-                                duration,
-                                Colors.teal.shade500,
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
                 ),
-                // Right side indicator
+                // Arrow icon
                 Container(
-                  width: 6,
+                  width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: accentTeal.withOpacity(0.7),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(3),
-                      bottomLeft: Radius.circular(3),
-                    ),
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  margin: const EdgeInsets.only(right: 16),
+                  child: Icon(
+                    Icons.arrow_forward_ios,
+                    color: accentTeal,
+                    size: 16,
                   ),
                 ),
               ],
@@ -852,66 +851,4 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
       ),
     );
   }
-
-  Widget _buildInfoChip(IconData icon, String text, Color iconColor) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          text,
-          style: TextStyle(
-            color: Colors.grey.shade700,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(width: 4),
-        Icon(icon, size: 14, color: iconColor),
-      ],
-    );
-  }
-}
-
-class SkeletonAnimation extends StatefulWidget {
-  final Widget child;
-  const SkeletonAnimation({Key? key, required this.child}) : super(key: key);
-
-  @override
-  _SkeletonAnimationState createState() => _SkeletonAnimationState();
-}
-
-class _SkeletonAnimationState extends State<SkeletonAnimation>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    )..repeat(reverse: true);
-    _animation = Tween<double>(begin: 0.3, end: 0.8).animate(_controller);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _animation,
-      builder:
-          (context, child) =>
-              Opacity(opacity: _animation.value, child: widget.child),
-    );
-  }
-}
-
-extension LetExtension on DateTime {
-  T let<T>(T Function(DateTime) op) => op(this);
 }

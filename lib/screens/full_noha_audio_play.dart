@@ -10,88 +10,39 @@ import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
+import 'package:share_plus/share_plus.dart';
 
 // Import the persistent mini player notifier.
 import '../widgets/persistent_mini_player.dart';
 
 // Import additional screens for bottom navigation.
 import 'home_screen.dart';
-import 'noha_screen.dart';
+import 'marsiya_screen.dart';
 
 /// Global audio player instance to persist playback.
-final AudioPlayer globalAudioPlayer = AudioPlayer();
+final AudioPlayer globalNohaPlayer = AudioPlayer();
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
-  await (await AudioSession.instance).configure(
-    const AudioSessionConfiguration.music(),
-  );
-  runApp(const MarsiyaAudioApp());
-}
+// Global variables to hold current track info for the mini player
+String globalNohaTitle = "Unknown Noha";
+String globalNohaArtistName = "Unknown Artist";
+String globalNohaImageUrl =
+    'https://algodream.in/admin/uploads/default_art.png';
 
-class MarsiyaAudioApp extends StatelessWidget {
-  const MarsiyaAudioApp({Key? key}) : super(key: key);
-  @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'Marsiya Audio Player',
-    debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.light,
-      colorScheme: const ColorScheme.light(
-        primary: Color(0xFF1A8754),
-        secondary: Color(0xFF0D7148),
-        surface: Colors.white,
-        background: Colors.white,
-        onPrimary: Colors.white,
-      ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: IconThemeData(color: Color(0xFF1A8754)),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF1A8754),
-          foregroundColor: Colors.white,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(20)),
-          ),
-        ),
-      ),
-      sliderTheme: SliderThemeData(
-        activeTrackColor: const Color(0xFF1A8754),
-        inactiveTrackColor: Colors.grey,
-        thumbColor: const Color(0xFF1A8754),
-        trackHeight: 5.0,
-        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
-        overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
-      ),
-      fontFamily: 'Roboto',
-    ),
-    home: const FullMarsiyaAudioPlay(audioId: "13"),
-  );
-}
-
-class FullMarsiyaAudioPlay extends StatefulWidget {
-  final String audioId;
+class FullNohaAudioPlay extends StatefulWidget {
+  final String nohaId;
   final bool autoPlay;
-  const FullMarsiyaAudioPlay({
+  const FullNohaAudioPlay({
     Key? key,
-    required this.audioId,
+    required this.nohaId,
     this.autoPlay = false,
   }) : super(key: key);
   @override
-  State<FullMarsiyaAudioPlay> createState() => _FullMarsiyaAudioPlayState();
+  State<FullNohaAudioPlay> createState() => _FullNohaAudioPlayState();
 }
 
-class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
+class _FullNohaAudioPlayState extends State<FullNohaAudioPlay>
     with TickerProviderStateMixin {
-  final AudioPlayer _player = globalAudioPlayer;
+  final AudioPlayer _player = globalNohaPlayer;
   late TabController _tabCtrl;
   late AnimationController _animCtrl;
 
@@ -130,7 +81,7 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
       duration: const Duration(milliseconds: 300),
     );
     _lyricsTab = const Center(child: CircularProgressIndicator());
-    fetchAudioData().then((_) {
+    fetchNohaData().then((_) {
       _setupAudio();
       fetchRecommendations();
     });
@@ -165,7 +116,7 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
         // Make sure the mini-player knows we have active content
         if (_player.audioSource != null) {
           showMiniPlayer();
-          print("Re-enabling mini-player for Marsiya content");
+          print("Re-enabling mini-player for Noha content");
         }
       });
     }
@@ -178,17 +129,17 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
     final currentSource = _player.audioSource;
     if (currentSource is UriAudioSource) {
       final currentTag = currentSource.tag as Map<String, dynamic>?;
-      if (currentTag?['audioId'] == widget.audioId) return;
+      if (currentTag?['nohaId'] == widget.nohaId) return;
     }
     if (audioUrl.isNotEmpty) {
       try {
-        // Ensure Noha player is stopped before playing Marsiya
-        coordPlayerPlayback(false);
+        // Stop any playing marsiya audio before playing noha
+        coordPlayerPlayback(true);
 
         await _player.setAudioSource(
           AudioSource.uri(
             Uri.parse(audioUrl),
-            tag: {'audioId': widget.audioId.toString()},
+            tag: {'nohaId': widget.nohaId.toString()},
           ),
         );
         await (await AudioSession.instance).setActive(true);
@@ -202,11 +153,11 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
     }
   }
 
-  Future<void> fetchAudioData() async {
+  Future<void> fetchNohaData() async {
     try {
       final res = await http.get(
         Uri.parse(
-          "https://algodream.in/admin/api/get_marsiya_audio_byId.php?api_key=MOHAMMADASKERYMALIKFROMNOWLARI&audio_id=${widget.audioId}",
+          "https://algodream.in/admin/api/get_noha_audio_byId.php?api_key=MOHAMMADASKERYMALIKFROMNOWLARI&noha_id=${widget.nohaId}",
         ),
       );
       if (res.statusCode == 200) {
@@ -242,9 +193,9 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
             });
 
             // Update global variables for the mini player.
-            globalTrackTitle = title;
-            globalArtistName = author;
-            globalImageUrl = imageUrl;
+            globalNohaTitle = title;
+            globalNohaArtistName = author;
+            globalNohaImageUrl = imageUrl;
 
             _lyricsTab = LyricsTab(pdfUrl: pdfUrl);
           }
@@ -280,7 +231,7 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
     try {
       final res = await http.get(
         Uri.parse(
-          "https://algodream.in/admin/api/get_marsiya_audio_recommendation.php?api_key=MOHAMMADASKERYMALIKFROMNOWLARI&audio_id=${widget.audioId}",
+          "https://algodream.in/admin/api/get_noha_audio_recommendation.php?api_key=MOHAMMADASKERYMALIKFROMNOWLARI&noha_id=${widget.nohaId}",
         ),
       );
       if (res.statusCode == 200) {
@@ -290,7 +241,7 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
           setState(() {
             recommendedSongs = data;
             currentIndex = recommendedSongs.indexWhere(
-              (song) => song['id'].toString() == widget.audioId,
+              (song) => song['id'].toString() == widget.nohaId,
             );
           });
         }
@@ -307,8 +258,8 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
         await _player.pause();
         if (mounted) setState(() => isWaiting = false);
       } else {
-        // Stop any playing noha audio before playing marsiya
-        coordPlayerPlayback(false);
+        // Stop any playing marsiya audio before playing noha
+        coordPlayerPlayback(true);
 
         if (_player.processingState == ProcessingState.idle)
           await _setupAudio();
@@ -334,14 +285,12 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
       if (newIndex >= recommendedSongs.length) {
         newIndex = 0; // loop back to the first track.
       }
-      final newAudioId = recommendedSongs[newIndex]['id'].toString();
+      final newNohaId = recommendedSongs[newIndex]['id'].toString();
       // Mark this screen as being replaced so mini-player is not shown on dispose.
       _isReplaced = true;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => FullMarsiyaAudioPlay(audioId: newAudioId),
-        ),
+        MaterialPageRoute(builder: (_) => FullNohaAudioPlay(nohaId: newNohaId)),
       );
     }
   }
@@ -352,13 +301,11 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
       if (newIndex < 0) {
         newIndex = recommendedSongs.length - 1; // loop to the last track.
       }
-      final newAudioId = recommendedSongs[newIndex]['id'].toString();
+      final newNohaId = recommendedSongs[newIndex]['id'].toString();
       _isReplaced = true;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => FullMarsiyaAudioPlay(audioId: newAudioId),
-        ),
+        MaterialPageRoute(builder: (_) => FullNohaAudioPlay(nohaId: newNohaId)),
       );
     }
   }
@@ -513,7 +460,7 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
                 isLoading = true;
                 errorMsg = "";
               });
-              await fetchAudioData();
+              await fetchNohaData();
               await _setupAudio();
             },
             icon: const Icon(Icons.refresh),
@@ -729,6 +676,24 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
     ),
   );
 
+  Widget _ctrlBtn(IconData icon, VoidCallback onPressed, {double size = 24}) =>
+      Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(30),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Icon(
+              icon,
+              size: size,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        ),
+      );
+
   Widget _titleAuthor() => Container(
     padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
     margin: const EdgeInsets.only(bottom: 8),
@@ -762,245 +727,227 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            const Text(
-              "zakir:",
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-                fontWeight: FontWeight.w600,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              author.isNotEmpty ? author : "Unknown Artist",
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.black,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
+        const SizedBox(height: 4),
+        Text(
+          author,
+          style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     ),
   );
-
-  Widget _ctrlBtn(
-    IconData icon,
-    VoidCallback onPressed, {
-    required double size,
-    Color? color,
-  }) => IconButton(
-    icon: Icon(icon, color: color ?? Colors.black, size: size),
-    onPressed: onPressed,
-  );
 }
 
+// Extension to make DateFormat easier
+extension DateTimeExtension on DateTime {
+  static DateTime? tryParse(String? input) {
+    if (input == null || input.isEmpty) return null;
+    try {
+      return DateTime.parse(input);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  T let<T>(T Function(DateTime d) block) => block(this);
+}
+
+/// Lyrics tab to display PDF content
 class LyricsTab extends StatefulWidget {
   final String? pdfUrl;
+
   const LyricsTab({Key? key, this.pdfUrl}) : super(key: key);
+
   @override
   State<LyricsTab> createState() => _LyricsTabState();
 }
 
-class _LyricsTabState extends State<LyricsTab>
-    with AutomaticKeepAliveClientMixin {
+class _LyricsTabState extends State<LyricsTab> {
   bool _isLoading = true;
-  String? _localPdfPath;
+  String? _localPath;
+  String _errorMsg = '';
+  bool _hasPdf = false;
 
   @override
   void initState() {
     super.initState();
-    if (widget.pdfUrl != null) {
-      _loadPdf(widget.pdfUrl!);
-    } else {
-      _isLoading = false;
-    }
+    _checkPdf();
   }
 
-  Future<void> _loadPdf(String url) async {
+  Future<void> _checkPdf() async {
+    if (widget.pdfUrl == null || widget.pdfUrl!.isEmpty) {
+      setState(() {
+        _isLoading = false;
+        _hasPdf = false;
+      });
+      return;
+    }
+
+    setState(() => _isLoading = true);
     try {
-      final response = await http.get(Uri.parse(url));
-      final bytes = response.bodyBytes;
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/lyrics.pdf');
-      await file.writeAsBytes(bytes);
-      setState(() {
-        _localPdfPath = file.path;
-        _isLoading = false;
-      });
+      final cachedDir = await getTemporaryDirectory();
+      final String fileId = widget.pdfUrl!
+          .split('/')
+          .last
+          .replaceAll(RegExp(r'[^\w]'), '_');
+      final String filePath = '${cachedDir.path}/$fileId.pdf';
+      final file = File(filePath);
+
+      if (await file.exists()) {
+        setState(() {
+          _localPath = filePath;
+          _isLoading = false;
+          _hasPdf = true;
+        });
+        return;
+      }
+
+      // File doesn't exist, download it.
+      final response = await http.get(Uri.parse(widget.pdfUrl!));
+      if (response.statusCode == 200) {
+        await file.writeAsBytes(response.bodyBytes);
+        setState(() {
+          _localPath = filePath;
+          _isLoading = false;
+          _hasPdf = true;
+        });
+      } else {
+        setState(() {
+          _errorMsg = 'Failed to download lyrics: ${response.statusCode}';
+          _isLoading = false;
+          _hasPdf = false;
+        });
+      }
     } catch (e) {
-      print('Error loading PDF: $e');
       setState(() {
+        _errorMsg = 'Error: $e';
         _isLoading = false;
+        _hasPdf = false;
       });
     }
   }
 
-  @override
-  bool get wantKeepAlive => true;
   @override
   Widget build(BuildContext context) {
-    super.build(context);
-    if (widget.pdfUrl == null) {
-      return _noPdf();
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
     }
 
-    return Stack(
-      children: [
-        AnimatedOpacity(
-          opacity: _isLoading ? 0.0 : 1.0,
-          duration: const Duration(milliseconds: 500),
-          child: Container(
-            margin: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  spreadRadius: 2,
+    if (!_hasPdf) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.description_outlined,
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'No lyrics available for this noha',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (_errorMsg.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                _errorMsg,
+                style: TextStyle(fontSize: 14, color: Colors.red.shade300),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: _checkPdf,
+              icon: const Icon(Icons.refresh),
+              label: const Text("Try Again"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1A8754),
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            color: const Color(0xFF1A8754),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Noha Lyrics',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.share, color: Colors.white, size: 20),
+                  onPressed: () async {
+                    try {
+                      await Share.shareFiles([
+                        _localPath!,
+                      ], text: 'Check out these noha lyrics!');
+                    } catch (e) {
+                      // Ignore errors
+                    }
+                  },
                 ),
               ],
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child:
-                  _localPdfPath != null
-                      ? PDFView(
-                        filePath: _localPdfPath!,
-                        enableSwipe: true,
-                        swipeHorizontal: false,
-                        autoSpacing: true,
-                        pageFling: true,
-                        onRender: (_) => setState(() => _isLoading = false),
-                        onError: (error) {
-                          print(error);
-                          setState(() => _isLoading = false);
-                        },
-                      )
-                      : Container(color: Colors.white),
-            ),
           ),
-        ),
-        if (_isLoading) const Center(child: CircularProgressIndicator()),
-        Positioned(
-          top: 16,
-          right: 16,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: () {
-                if (_localPdfPath != null) {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder:
-                          (_) => FullScreenPdfViewer(pdfPath: _localPdfPath!),
-                    ),
-                  );
-                }
+          Expanded(
+            child: PDFView(
+              filePath: _localPath!,
+              enableSwipe: true,
+              swipeHorizontal: false,
+              autoSpacing: true,
+              pageFling: true,
+              onError: (error) {
+                setState(() {
+                  _errorMsg = error.toString();
+                  _hasPdf = false;
+                });
               },
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.fullscreen,
-                  size: 18,
-                  color: Colors.white,
-                ),
-              ),
+              onRender: (_) {
+                setState(() => _isLoading = false);
+              },
+              onViewCreated: (pdfViewController) {
+                // Controller can be stored for further manipulation if needed
+              },
             ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _noPdf() => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20),
-    child: Column(
-      children: [
-        const SizedBox(height: 20),
-        Container(
-          width: 100,
-          height: 100,
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                spreadRadius: 2,
-              ),
-            ],
-          ),
-          child: Icon(
-            Icons.lyrics_outlined,
-            size: 50,
-            color: Colors.grey.shade400,
-          ),
-        ),
-        const SizedBox(height: 20),
-        const Text(
-          "No Lyrics Available",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 30),
-          child: Text(
-            "We couldn't find lyrics for this audio. You can still enjoy listening to the beautiful recitation.",
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 14,
-              height: 1.5,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class FullScreenPdfViewer extends StatelessWidget {
-  final String pdfPath;
-
-  const FullScreenPdfViewer({Key? key, required this.pdfPath})
-    : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-      ),
-      body: PDFView(
-        filePath: pdfPath,
-        enableSwipe: true,
-        swipeHorizontal: false,
-        autoSpacing: true,
-        pageFling: true,
+        ],
       ),
     );
   }
-}
-
-extension LetExtension on DateTime {
-  T let<T>(T Function(DateTime) op) => op(this);
 }

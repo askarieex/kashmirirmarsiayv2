@@ -26,11 +26,11 @@ class PaidPromotion {
 
   factory PaidPromotion.fromJson(Map<String, dynamic> json) {
     return PaidPromotion(
-      id: json['id'] ?? '',
+      id: json['id']?.toString() ?? '',
       promotionName: json['promotion_name'] ?? '',
       promotionLink: json['promotion_link'] ?? '',
       imageUrl: json['image_url'] ?? '',
-      isActive: json['is_active'] == '1',
+      isActive: json['is_active'] == 1 || json['is_active'] == '1',
       createdAt: json['created_at'] ?? '',
       promotionTitle: json['promotion_title'] ?? '',
       promotionDescription: json['promotion_description'] ?? '',
@@ -46,7 +46,7 @@ class PaidPromotion {
       onTap: () async {
         final url = Uri.parse(promotionLink);
         if (await canLaunchUrl(url)) {
-          await launchUrl(url);
+          await launchUrl(url, mode: LaunchMode.externalApplication);
         }
       },
     );
