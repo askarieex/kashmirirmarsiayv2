@@ -125,7 +125,6 @@ class _HomeScreenState extends State<HomeScreen>
     });
 
     _startAutoScroll();
-    _startArtistAutoScroll();
 
     // Set initial loading state
     _isLoading = true;
@@ -139,7 +138,9 @@ class _HomeScreenState extends State<HomeScreen>
         _fetchPosters();
         _fetchPaidPromotions();
         _fetchProfilesByCategory();
-        _setupPopupMessage();
+
+        // Try to fetch popup message with retries
+        _setupPopupMessageWithRetry();
       }
     });
   }
@@ -152,24 +153,6 @@ class _HomeScreenState extends State<HomeScreen>
       if (mounted) {
         _pageController.animateToPage(
           _currentPage,
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.easeInOut,
-        );
-      }
-    });
-  }
-
-  void _startArtistAutoScroll() {
-    _artistAutoScrollTimer?.cancel();
-    _artistAutoScrollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (_profilesByCategory['Both']?.isEmpty ?? true) return;
-      _currentArtistIndex =
-          (_currentArtistIndex + 1) %
-          (_profilesByCategory['Both']?.length ?? 1);
-      const double offsetPerItem = 95.0;
-      if (mounted && _artistScrollController.hasClients) {
-        _artistScrollController.animateTo(
-          _currentArtistIndex * offsetPerItem,
           duration: const Duration(milliseconds: 600),
           curve: Curves.easeInOut,
         );
@@ -271,8 +254,29 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // Popup Message Methods
-  void _setupPopupMessage() {
+  void _setupPopupMessageWithRetry() {
     _fetchPopupMessage();
+
+    // Fallback - if we don't get a response or if there's an issue, try again after 3 seconds
+    Future.delayed(const Duration(seconds: 3), () {
+      debugPrint('Checking if popup was shown...');
+      // Try to show a default popup message if API call failed
+      // This is just a safety measure to ensure something shows up
+      _showTestPopupIfNeeded();
+    });
+  }
+
+  bool _popupShown = false;
+
+  void _showTestPopupIfNeeded() {
+    if (!_popupShown && mounted) {
+      debugPrint('Showing fallback test popup message');
+      _showBeautifulPopup(
+        context,
+        'Welcome to Kashmiri Marsiya! Check out our latest content and features. Stay updated with our app for more information.',
+      );
+      _popupShown = true;
+    }
   }
 
   Future<void> _fetchPopupMessage() async {
@@ -280,24 +284,44 @@ class _HomeScreenState extends State<HomeScreen>
       final url = Uri.parse(
         'https://algodream.in/admin/api/get_popup_message.php',
       );
+
+      // Mark that we're attempting to fetch the popup
+      debugPrint('Attempting to fetch popup message from API');
+
       final response = await http.get(url);
+      debugPrint('Popup message API response status: ${response.statusCode}');
+      debugPrint('Popup message API response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body);
+        debugPrint('Popup message parsed JSON: $jsonData');
 
         if (jsonData['status'] == 'success') {
           final messageData = jsonData['data'];
+          debugPrint('Popup message data: $messageData');
+
           final popupMessage = PopupMessage.fromJson(messageData);
+          debugPrint('Popup message should display: ${popupMessage.display}');
+          debugPrint('Popup message content: ${popupMessage.message}');
 
           setState(() {});
 
           if (popupMessage.display) {
+            debugPrint('Should show popup: true');
             Future.delayed(const Duration(milliseconds: 800), () {
               if (mounted) {
+                debugPrint('Showing popup now');
                 _showBeautifulPopup(context, popupMessage.message);
+                _popupShown = true;
               }
             });
+          } else {
+            debugPrint('Popup display flag is false, not showing popup');
           }
+        } else {
+          debugPrint(
+            'Popup message API status not success: ${jsonData['status']}',
+          );
         }
       } else {
         debugPrint('Failed to load popup message: ${response.statusCode}');
@@ -341,8 +365,6 @@ class _HomeScreenState extends State<HomeScreen>
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _pageController.dispose();
     _autoScrollTimer?.cancel();
-    _artistScrollController.dispose();
-    _artistAutoScrollTimer?.cancel();
     _animController.dispose();
     super.dispose();
   }
@@ -372,6 +394,9 @@ class _HomeScreenState extends State<HomeScreen>
                         : CustomScrollView(
                           physics: const BouncingScrollPhysics(),
                           slivers: [
+                            // Top padding to create space
+                            SliverToBoxAdapter(child: SizedBox(height: 15)),
+
                             // Header Section with combined prayer times and calendar
                             SliverToBoxAdapter(
                               child: _buildHeaderSection(
@@ -444,7 +469,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 child: SlideAnimation(
                                   verticalOffset: 50,
                                   child: FadeInAnimation(
-                                    child: _buildTopZakirSection(),
+                                    child: _buildArtistsSection(),
                                   ),
                                 ),
                               ),
@@ -673,30 +698,42 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildHeaderSection(double screenWidth, double screenHeight) {
     return Column(
       children: [
-                  SafeArea(
-                    bottom: false,
-                    child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
+        SafeArea(
+          bottom: false,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            margin: const EdgeInsets.fromLTRB(10, 5, 10, 5),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
                 GestureDetector(
                   onTap: () {
-                              Scaffold.of(context).openDrawer();
-                            },
+                    Scaffold.of(context).openDrawer();
+                  },
                   child: Icon(Icons.menu, color: primaryColor, size: 28),
-                          ),
-                          Text(
-                            'Kashmiri Marsiya',
-                            style: GoogleFonts.poppins(
-                              color: primaryColor,
+                ),
+                Text(
+                  'Kashmiri Marsiya',
+                  style: GoogleFonts.poppins(
+                    color: primaryColor,
                     fontSize: 20,
-                              fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 GestureDetector(
                   onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
+                    ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Notifications tapped!')),
                     );
                   },
@@ -705,65 +742,68 @@ class _HomeScreenState extends State<HomeScreen>
                     color: primaryColor,
                     size: 28,
                   ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Add a small space between the top bar and date card
+        SizedBox(height: 10),
 
         // Islamic Date Card - Exact green style from image
         Container(
-                      width: double.infinity,
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          width: double.infinity,
+          margin: const EdgeInsets.fromLTRB(16, 10, 16, 16),
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                      decoration: BoxDecoration(
+          decoration: BoxDecoration(
             color: primaryColor,
             borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
+            boxShadow: [
+              BoxShadow(
                 color: primaryColor.withOpacity(0.25),
                 blurRadius: 8,
                 offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                            child: Row(
-                              children: [
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
               Icon(Icons.calendar_today, color: Colors.white, size: 22),
               const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
+                children: [
+                  Text(
                     _hijriDate.isNotEmpty ? _hijriDate : '13 Shawwál 1446',
-                                        style: GoogleFonts.poppins(
+                    style: GoogleFonts.poppins(
                       color: Colors.white,
                       fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      Text(
-                                        _gregorianDate.isNotEmpty
-                                            ? _gregorianDate
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    _gregorianDate.isNotEmpty
+                        ? _gregorianDate
                         : '11 April 2025',
-                                        style: GoogleFonts.poppins(
+                    style: GoogleFonts.poppins(
                       color: Colors.white.withOpacity(0.85),
                       fontSize: 13,
-                                          fontWeight: FontWeight.w400,
-                                        ),
-                                      ),
-                                    ],
-                                ),
-                              ],
-                            ),
-                          ),
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
 
         // Clean Prayer Times Section - Matching exactly the UI shown
-                          Container(
+        Container(
           width: double.infinity,
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           padding: const EdgeInsets.fromLTRB(8, 16, 8, 16),
-                            decoration: BoxDecoration(
+          decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
@@ -774,13 +814,13 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             ],
           ),
-                            child:
-                                _fajr.isEmpty &&
-                                        _sunrise.isEmpty &&
-                                        _dhuhr.isEmpty &&
-                                        _maghrib.isEmpty &&
-                                        _midnight.isEmpty
-                                    ? _buildPrayerTimesLoading()
+          child:
+              _fajr.isEmpty &&
+                      _sunrise.isEmpty &&
+                      _dhuhr.isEmpty &&
+                      _maghrib.isEmpty &&
+                      _midnight.isEmpty
+                  ? _buildPrayerTimesLoading()
                   : Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
@@ -862,7 +902,7 @@ class _HomeScreenState extends State<HomeScreen>
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
             child: Row(
-      children: [
+              children: [
                 Container(
                   width: 4,
                   height: 20,
@@ -872,22 +912,22 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
                 const SizedBox(width: 10),
-        Text(
+                Text(
                   "Quick Access",
-          style: GoogleFonts.poppins(
+                  style: GoogleFonts.poppins(
                     color: textPrimaryColor,
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
+                  ),
+                ),
+              ],
             ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
             child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
                 _buildQuickAccessItem(
                   icon: Icons.music_note,
                   title: 'Marsiya',
@@ -959,20 +999,20 @@ class _HomeScreenState extends State<HomeScreen>
                 child: Center(child: Icon(icon, color: Colors.white, size: 24)),
               ),
               const SizedBox(height: 12),
-        Text(
+              Text(
                 title,
-          style: GoogleFonts.poppins(
+                style: GoogleFonts.poppins(
                   color: Colors.white,
-            fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w600,
                   fontSize: 18,
-          ),
-        ),
+                ),
+              ),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-        Text(
+                  Text(
                     'Explore',
-          style: GoogleFonts.poppins(
+                    style: GoogleFonts.poppins(
                       color: Colors.white.withOpacity(0.9),
                       fontWeight: FontWeight.w400,
                       fontSize: 13,
@@ -993,178 +1033,425 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildTopZakirSection() {
+  Widget _buildArtistsSection() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-            child: Row(
-              children: [
-                Container(
-                  width: 4,
-                  height: 18,
-                  decoration: BoxDecoration(
-                    color: primaryColor,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  "Top Zakirs and Noha Khans",
-                  style: GoogleFonts.poppins(
-                    color: textPrimaryColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const Spacer(),
-                TextButton(
-                  onPressed: () {
-                    // Navigate to the all profiles screen
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AllProfilesScreen(),
-                      ),
-                    );
-                  },
-                  child: Text(
-                    "See All",
-                    style: GoogleFonts.poppins(
-                      color: primaryColor,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // Recommended Zakirs Section with enhanced design
           Container(
-            height:
-                90, // Reduced height from 100 since we removed category badge
-            margin: const EdgeInsets.only(
-              bottom: 12,
-            ), // Bottom margin for spacing
+            padding: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.03),
-                  blurRadius: 6,
+                  blurRadius: 8,
                   spreadRadius: 0,
                   offset: const Offset(0, 2),
                 ),
               ],
             ),
-            child:
-                _isLoadingProfiles
-                    ? Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 20,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              color: primaryColor.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.record_voice_over,
+                              color: primaryColor,
+                              size: 12,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Recommended Zakirs",
+                            style: GoogleFonts.poppins(
+                              color: textPrimaryColor,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                    )
-                    : _profilesByCategory['Both']?.isEmpty ?? true
-                    ? Center(
-                      child: Text(
-                        'No profiles available',
-                        style: GoogleFonts.poppins(
-                          color: textSecondaryColor,
-                          fontSize: 14,
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ZakirScreen(),
+                            ),
+                          );
+                        },
+                        child: Row(
+                          children: [
+                            Text(
+                              "View All Zakirs",
+                              style: GoogleFonts.poppins(
+                                color: primaryColor,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.arrow_forward_ios,
+                              color: primaryColor,
+                              size: 12,
+                            ),
+                          ],
                         ),
                       ),
-                    )
-                    : ListView.builder(
-              controller: _artistScrollController,
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                      itemCount: _profilesByCategory['Both']?.length ?? 0,
-                      itemBuilder: (context, index) {
-                        final profile = _profilesByCategory['Both']![index];
-                        return _buildArtistItem(profile);
-                      },
-                    ),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  height: 102,
+                  child:
+                      _isLoadingProfiles
+                          ? Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  primaryColor,
+                                ),
+                                strokeWidth: 2,
+                              ),
+                            ),
+                          )
+                          : _profilesByCategory['Zakir']?.isEmpty ?? true
+                          ? Center(
+                            child: Text(
+                              'No Zakirs available',
+                              style: GoogleFonts.poppins(
+                                color: textSecondaryColor,
+                                fontSize: 14,
+                              ),
+                            ),
+                          )
+                          : ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.only(left: 16),
+                            itemCount:
+                                _profilesByCategory['Zakir']?.length ?? 0,
+                            itemBuilder: (context, index) {
+                              final profile =
+                                  _profilesByCategory['Zakir']![index];
+                              return AnimationConfiguration.staggeredList(
+                                position: index,
+                                duration: const Duration(milliseconds: 400),
+                                delay: Duration(milliseconds: 50 * index),
+                                child: SlideAnimation(
+                                  horizontalOffset: 30,
+                                  child: FadeInAnimation(
+                                    child: _buildEnhancedArtistCard(
+                                      profile,
+                                      primaryColor,
+                                      "Zakir",
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                ),
+              ],
+            ),
+          ),
+
+          // Recommended Noha Khans Section with enhanced design
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 8,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 20,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              color: accentColor.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.mic_external_on,
+                              color: accentColor,
+                              size: 12,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Recommended Noha Khans",
+                            style: GoogleFonts.poppins(
+                              color: textPrimaryColor,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const NohaKhanScreen(),
+                            ),
+                          );
+                        },
+                        child: Row(
+                          children: [
+                            Text(
+                              "View All Noha Khans",
+                              style: GoogleFonts.poppins(
+                                color: accentColor,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.arrow_forward_ios,
+                              color: accentColor,
+                              size: 12,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  height: 102,
+                  child:
+                      _isLoadingProfiles
+                          ? Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  accentColor,
+                                ),
+                                strokeWidth: 2,
+                              ),
+                            ),
+                          )
+                          : _profilesByCategory['Noha Khan']?.isEmpty ?? true
+                          ? Center(
+                            child: Text(
+                              'No Noha Khans available',
+                              style: GoogleFonts.poppins(
+                                color: textSecondaryColor,
+                                fontSize: 14,
+                              ),
+                            ),
+                          )
+                          : ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.only(left: 16),
+                            itemCount:
+                                _profilesByCategory['Noha Khan']?.length ?? 0,
+                            itemBuilder: (context, index) {
+                              final profile =
+                                  _profilesByCategory['Noha Khan']![index];
+                              return AnimationConfiguration.staggeredList(
+                                position: index,
+                                duration: const Duration(milliseconds: 400),
+                                delay: Duration(milliseconds: 50 * index),
+                                child: SlideAnimation(
+                                  horizontalOffset: 30,
+                                  child: FadeInAnimation(
+                                    child: _buildEnhancedArtistCard(
+                                      profile,
+                                      accentColor,
+                                      "Noha Khan",
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildArtistItem(ArtistItem artist) {
+  Widget _buildEnhancedArtistCard(
+    ArtistItem artist,
+    Color themeColor,
+    String type,
+  ) {
     return GestureDetector(
-                          onTap: () {
-        // Navigate to the profile view screen
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
             builder: (context) => ViewProfileScreen(profileId: artist.id),
-                              ),
-                            );
-                          },
+          ),
+        );
+      },
       child: Container(
-        width: 85, // Reduced from 90
-        margin: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-            // Profile image with shadow and border
-                              Container(
-              width: 62, // Slightly larger than 60
-              height: 62, // Slightly larger than 60
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                border: Border.all(color: primaryColor, width: 2),
-                                  boxShadow: [
-                                    BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 3),
+        width: 80,
+        margin: const EdgeInsets.only(right: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Profile Image with animation
+            TweenAnimationBuilder(
+              duration: const Duration(milliseconds: 300),
+              tween: Tween<double>(begin: 0.9, end: 1.0),
+              builder: (context, double scale, child) {
+                return Transform.scale(scale: scale, child: child);
+              },
+              child: Stack(
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          themeColor.withOpacity(0.2),
+                          themeColor.withOpacity(0.1),
+                        ],
+                      ),
+                      border: Border.all(
+                        color: themeColor.withOpacity(0.8),
+                        width: 1.5,
+                      ),
+                    ),
+                    padding: const EdgeInsets.all(3),
+                    child: ClipOval(
+                      child: CachedNetworkImage(
+                        imageUrl: artist.imageUrl,
+                        fit: BoxFit.cover,
+                        placeholder:
+                            (context, url) => Container(
+                              color: Colors.grey.shade100,
+                              child: Center(
+                                child: SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      themeColor,
                                     ),
-                ],
-              ),
-              child: ClipOval(
-                child: CachedNetworkImage(
-                  imageUrl: artist.imageUrl,
-                  fit: BoxFit.cover,
-                  placeholder:
-                      (context, url) => Container(
-                        color: Colors.grey.shade200,
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              primaryColor,
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              ),
                             ),
-                            strokeWidth: 2,
+                        errorWidget:
+                            (context, url, error) => Container(
+                              color: Colors.grey.shade100,
+                              child: Icon(
+                                Icons.person,
+                                color: Colors.grey.shade300,
+                                size: 24,
+                              ),
+                            ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 2,
+                            spreadRadius: 0,
                           ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Icon(
+                          type == "Zakir"
+                              ? Icons.record_voice_over
+                              : Icons.mic_external_on,
+                          color: themeColor,
+                          size: 10,
                         ),
                       ),
-                  errorWidget: (context, url, error) {
-                    return Container(
-                      color: Colors.grey.shade200,
-                      child: const Icon(Icons.person, color: Colors.grey),
-                    );
-                  },
-                ),
+                    ),
+                  ),
+                ],
               ),
             ),
+
             const SizedBox(height: 6),
-            // Just show the name - no category badge
+
+            // Name
             Text(
-                                  artist.name,
-                                  style: GoogleFonts.poppins(
-                fontSize: 11,
-                                    fontWeight: FontWeight.w500,
+              artist.name,
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
                 color: textPrimaryColor,
               ),
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+            ),
+
+            // Category badge
+            Text(
+              type,
+              style: GoogleFonts.poppins(
+                fontSize: 10,
+                fontWeight: FontWeight.w400,
+                color: themeColor,
+              ),
             ),
           ],
         ),
@@ -1180,30 +1467,30 @@ class _HomeScreenState extends State<HomeScreen>
           padding: const EdgeInsets.symmetric(vertical: 8),
           margin: const EdgeInsets.only(top: 8), // Added top margin for spacing
           child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              Container(
-                width: 4,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: primaryColor,
-                  borderRadius: BorderRadius.circular(2),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: primaryColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                "Featured Content",
-                style: GoogleFonts.poppins(
-                  color: textPrimaryColor,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
+                const SizedBox(width: 8),
+                Text(
+                  "Featured Content",
+                  style: GoogleFonts.poppins(
+                    color: textPrimaryColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
         ),
         // Added container with fixed height to prevent overflow
         Container(height: 210, child: _buildBannerCarousel()),
@@ -1305,24 +1592,24 @@ class _HomeScreenState extends State<HomeScreen>
           Padding(
             padding: const EdgeInsets.only(top: 8, bottom: 4),
             child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize:
                   MainAxisSize.min, // Use min size to prevent expansion
-          children: List.generate(_posters.length, (index) {
-            final isActive = index == _currentPage;
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              margin: const EdgeInsets.symmetric(horizontal: 4),
+              children: List.generate(_posters.length, (index) {
+                final isActive = index == _currentPage;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
                   width: isActive ? 20 : 6, // Slightly smaller dots
                   height: 6, // Fixed smaller height
-              decoration: BoxDecoration(
-                color: isActive ? primaryColor : Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(12),
-              ),
-            );
-          }),
+                  decoration: BoxDecoration(
+                    color: isActive ? primaryColor : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                );
+              }),
             ),
-        ),
+          ),
       ],
     );
   }
@@ -1670,8 +1957,8 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildPrayerTimesLoading() {
     return Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
         SizedBox(
           width: 12,
           height: 12,
@@ -1681,7 +1968,7 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ),
         const SizedBox(width: 8),
-                    Text(
+        Text(
           'Loading prayer times...',
           style: GoogleFonts.poppins(
             color: textSecondaryColor,
@@ -1703,8 +1990,8 @@ class _HomeScreenState extends State<HomeScreen>
 
       setState(() {
         _adItems = adItems;
-          _isLoadingAds = false;
-        });
+        _isLoadingAds = false;
+      });
     } catch (e) {
       debugPrint('Error fetching paid promotions: $e');
       setState(() => _isLoadingAds = false);
@@ -1713,75 +2000,79 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _fetchProfilesByCategory() async {
     try {
-      // Use random profiles API instead of category-based
-      print('Using random profiles API instead of category-based');
-      final randomProfiles = await ProfileService.getRandomProfiles();
-
-      if (randomProfiles.isEmpty) {
-        print('No random profiles found');
-        setState(() {
-          _isLoadingProfiles = false;
-        });
-        return;
-      }
-
-      // Group profiles by category
+      // Create Map to store profiles by category
       final Map<String, List<ArtistItem>> profiles = {
         'Zakir': [],
         'Noha Khan': [],
         'Both': [],
       };
 
-      for (final profile in randomProfiles) {
-        // Normalize category name to match our display categories
-        String displayCategory;
-        switch (profile.category.toLowerCase()) {
-          case 'zakir':
-            displayCategory = 'Zakir';
-            break;
-          case 'noha khan':
-            displayCategory = 'Noha Khan';
-            break;
-          case 'both':
-            displayCategory = 'Both';
-            break;
-          default:
-            displayCategory = 'Other';
-        }
-
-        // Add to corresponding category
-        if (profiles.containsKey(displayCategory)) {
-          profiles[displayCategory]!.add(profile);
-        } else if (displayCategory == 'Other') {
-          // For other categories, decide where to place them
-          if (profile.category.toLowerCase().contains('zakir')) {
-            profiles['Zakir']!.add(profile);
-          } else if (profile.category.toLowerCase().contains('noha')) {
-            profiles['Noha Khan']!.add(profile);
-          } else {
-            // Default to Both if can't determine
-            profiles['Both']!.add(profile);
-          }
-        }
-      }
-
-      // Make sure all profiles are displayed on the home screen
-      // Instead of just showing "Both" category profiles, show all profiles in the top section
-      List<ArtistItem> allProfiles = [...randomProfiles];
-
-      print('Processed ${randomProfiles.length} random profiles:');
-      print('All profiles for display: ${allProfiles.length}');
-      print(
-        'By category - Zakir: ${profiles['Zakir']?.length}, Noha Khan: ${profiles['Noha Khan']?.length}, Both: ${profiles['Both']?.length}',
+      // Fetch recommended Zakirs
+      final recommendedZakirsUrl = Uri.parse(
+        'https://algodream.in/admin/api/get_recommended_zakir.php?api_key=MOHAMMADASKERYMALIKFROMNOWLARI&limit=10',
       );
 
+      // Fetch recommended Noha Khans
+      final recommendedNohaKhansUrl = Uri.parse(
+        'https://algodream.in/admin/api/get_recommended_noha_khan.php?api_key=MOHAMMADASKERYMALIKFROMNOWLARI&limit=10',
+      );
+
+      // Make parallel API calls for better performance
+      final zakirResponse = await http.get(recommendedZakirsUrl);
+      final nohaKhanResponse = await http.get(recommendedNohaKhansUrl);
+
+      // Process Zakirs response
+      if (zakirResponse.statusCode == 200) {
+        final jsonData = jsonDecode(zakirResponse.body);
+        if (jsonData['status'] == 'success' && jsonData['data'] != null) {
+          final List<dynamic> zakirData = jsonData['data'];
+          final List<ArtistItem> zakirs =
+              zakirData.map((data) => ArtistItem.fromJson(data)).toList();
+          profiles['Zakir'] = zakirs;
+          print('Fetched ${zakirs.length} recommended Zakirs');
+        } else {
+          print('No recommended Zakirs found or invalid response format');
+        }
+      } else {
+        print(
+          'Failed to fetch recommended Zakirs: ${zakirResponse.statusCode}',
+        );
+      }
+
+      // Process Noha Khans response
+      if (nohaKhanResponse.statusCode == 200) {
+        final jsonData = jsonDecode(nohaKhanResponse.body);
+        if (jsonData['status'] == 'success' && jsonData['data'] != null) {
+          final List<dynamic> nohaKhanData = jsonData['data'];
+          final List<ArtistItem> nohaKhans =
+              nohaKhanData.map((data) => ArtistItem.fromJson(data)).toList();
+          profiles['Noha Khan'] = nohaKhans;
+          print('Fetched ${nohaKhans.length} recommended Noha Khans');
+        } else {
+          print('No recommended Noha Khans found or invalid response format');
+        }
+      } else {
+        print(
+          'Failed to fetch recommended Noha Khans: ${nohaKhanResponse.statusCode}',
+        );
+      }
+
+      // If any category is empty, use profiles from the other category as fallback
+      if (profiles['Zakir']!.isEmpty && profiles['Noha Khan']!.isNotEmpty) {
+        print('No Zakirs found, using some Noha Khans as fallback');
+        profiles['Zakir'] = [...profiles['Noha Khan']!.take(3)];
+      }
+
+      if (profiles['Noha Khan']!.isEmpty && profiles['Zakir']!.isNotEmpty) {
+        print('No Noha Khans found, using some Zakirs as fallback');
+        profiles['Noha Khan'] = [...profiles['Zakir']!.take(3)];
+      }
+
+      // Combined profiles for "Both" category if needed elsewhere
+      profiles['Both'] = [...profiles['Zakir']!, ...profiles['Noha Khan']!];
+
       setState(() {
-        // Store categorized profiles for the All Profiles screen
         _profilesByCategory = profiles;
-
-        // For home screen display, override 'Both' to show all profiles
-        _profilesByCategory['Both'] = allProfiles;
-
         _isLoadingProfiles = false;
       });
     } catch (e) {

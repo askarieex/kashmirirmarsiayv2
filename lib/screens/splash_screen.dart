@@ -71,10 +71,10 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    // After 3 seconds, navigate to the GetStartedScreen
+    // After 3 seconds, navigate to the MainNavigationScreen directly instead of GetStartedScreen
     Timer(const Duration(milliseconds: 3000), () {
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/getStarted');
+        Navigator.pushReplacementNamed(context, '/mainNav');
       }
     });
   }

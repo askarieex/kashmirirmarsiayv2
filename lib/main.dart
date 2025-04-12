@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'screens/splash_screen.dart';
-import 'screens/get_started_screen.dart';
 import 'screens/main_navigation_screen.dart';
 import 'widgets/persistent_mini_player.dart';
 
@@ -54,7 +53,6 @@ class MyApp extends StatelessWidget {
       initialRoute: '/', // Start with the splash screen.
       routes: {
         '/': (_) => const SplashScreen(),
-        '/getStarted': (_) => const GetStartedScreen(),
         '/mainNav': (_) => const MainNavigationScreen(),
       },
       // Wrap every route with the persistent mini player.

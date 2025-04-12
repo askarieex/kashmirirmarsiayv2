@@ -1,8 +1,8 @@
-name: kashmirimarsiya
+name: Marsiya
 description: A new Flutter project.
 
 publish_to: 'none' 
-version: 1.0.0+1
+version: 1.0.0+5
 
 environment:
   sdk: ^3.7.0
@@ -39,9 +39,29 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/unnamed.png"
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/images/unnamed.png"
+  remove_alpha_ios: true
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/images/unnamed.png"
+  windows:
+    generate: true
+    image_path: "assets/images/unnamed.png"
+  macos:
+    generate: true
+    image_path: "assets/images/unnamed.png"
 
 flutter:
   uses-material-design: true
   assets:
     - assets/images/logo.png
     - assets/images/karbala.jpg
+    - assets/images/unnamed.png
