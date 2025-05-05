@@ -33,6 +33,8 @@ import '../widgets/quick_actions_bar.dart';
 import '../widgets/sponsored_ad_banner.dart';
 import '../widgets/skeleton_loader.dart'; // Add import for SkeletonLoader
 import 'all_profiles_screen.dart'; // Add this import
+import 'all_zakirs_screen.dart';
+import 'all_noha_khans_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -72,6 +74,7 @@ class _HomeScreenState extends State<HomeScreen>
   bool _isLoading = true;
   bool _isLoadingAds = true;
   bool _isLoadingProfiles = true;
+  bool _isAdDismissed = false;
 
   // Updated poster and ad items
   final List<PosterItem> _posters = [];
@@ -89,18 +92,9 @@ class _HomeScreenState extends State<HomeScreen>
   late final Animation<double> _scaleAnimation;
 
   final List<Map<String, dynamic>> features = [
-    {'label': 'Marsiya', 'icon': Icons.music_note},
-    {'label': 'Noha', 'icon': Icons.headphones},
-    {'label': 'Zakir', 'icon': Icons.record_voice_over},
-    {'label': 'Noha Khan', 'icon': Icons.mic_external_on},
-    {'label': 'Events', 'icon': Icons.event},
     {'label': 'About Us', 'icon': Icons.info_outline},
     {'label': 'Education', 'icon': Icons.school},
     {'label': 'Contact Us', 'icon': Icons.contact_mail},
-    {'label': 'Favourites', 'icon': Icons.favorite},
-    {'label': 'Help Us', 'icon': Icons.help},
-    {'label': 'Community', 'icon': Icons.group},
-    {'label': 'History', 'icon': Icons.history},
   ];
 
   @override
@@ -427,35 +421,81 @@ class _HomeScreenState extends State<HomeScreen>
                                 child: SlideAnimation(
                                   verticalOffset: 40,
                                   child: FadeInAnimation(
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 20,
-                                      ),
-                                      child:
-                                          _isLoadingAds
-                                              ? Center(
-                                                child: SizedBox(
-                                                  height: 140,
-                                                  child: Center(
-                                                    child: CircularProgressIndicator(
-                                                      valueColor:
-                                                          AlwaysStoppedAnimation<
-                                                            Color
-                                                          >(primaryColor),
-                                                      strokeWidth: 2,
-                                                    ),
-                                                  ),
-                                                ),
-                                              )
-                                              : SponsoredAdBanner(
-                                                adItems: _adItems,
-                                                height: 140,
-                                                margin:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 16,
-                                                    ),
+                                    child:
+                                        !_isAdDismissed
+                                            ? Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: 20,
                                               ),
-                                    ),
+                                              child:
+                                                  _isLoadingAds
+                                                      ? Center(
+                                                        child: SizedBox(
+                                                          height: 140,
+                                                          child: Center(
+                                                            child: CircularProgressIndicator(
+                                                              valueColor:
+                                                                  AlwaysStoppedAnimation<
+                                                                    Color
+                                                                  >(
+                                                                    primaryColor,
+                                                                  ),
+                                                              strokeWidth: 2,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      )
+                                                      : Stack(
+                                                        children: [
+                                                          SponsoredAdBanner(
+                                                            adItems: _adItems,
+                                                            height: 140,
+                                                            margin:
+                                                                const EdgeInsets.symmetric(
+                                                                  horizontal:
+                                                                      16,
+                                                                ),
+                                                          ),
+                                                          Positioned(
+                                                            top: 8,
+                                                            right: 24,
+                                                            child: GestureDetector(
+                                                              onTap: () {
+                                                                setState(() {
+                                                                  _isAdDismissed =
+                                                                      true;
+                                                                });
+                                                              },
+                                                              child: Container(
+                                                                padding:
+                                                                    const EdgeInsets.all(
+                                                                      4,
+                                                                    ),
+                                                                decoration: BoxDecoration(
+                                                                  color: Colors
+                                                                      .white
+                                                                      .withOpacity(
+                                                                        0.8,
+                                                                      ),
+                                                                  shape:
+                                                                      BoxShape
+                                                                          .circle,
+                                                                ),
+                                                                child: Icon(
+                                                                  Icons.close,
+                                                                  color:
+                                                                      Colors
+                                                                          .grey
+                                                                          .shade700,
+                                                                  size: 16,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                            )
+                                            : const SizedBox.shrink(),
                                   ),
                                 ),
                               ),
@@ -485,6 +525,18 @@ class _HomeScreenState extends State<HomeScreen>
                                   child: FadeInAnimation(
                                     child: _buildContentSection(screenWidth),
                                   ),
+                                ),
+                              ),
+                            ),
+
+                            // Footer section
+                            SliverToBoxAdapter(
+                              child: AnimationConfiguration.staggeredList(
+                                position: 5,
+                                duration: const Duration(milliseconds: 1100),
+                                child: SlideAnimation(
+                                  verticalOffset: 70,
+                                  child: FadeInAnimation(child: _buildFooter()),
                                 ),
                               ),
                             ),
@@ -530,10 +582,14 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.music_note,
-                      color: Colors.white,
-                      size: 50,
+                    child: CircleAvatar(
+                      radius: 32,
+                      backgroundColor: Colors.white,
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        height: 50,
+                        width: 50,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -541,16 +597,8 @@ class _HomeScreenState extends State<HomeScreen>
                     'Kashmiri Marsiya',
                     style: GoogleFonts.poppins(
                       color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
-                      shadows: [
-                        Shadow(
-                          blurRadius: 4.0,
-                          color: Colors.black.withOpacity(0.3),
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
@@ -561,8 +609,8 @@ class _HomeScreenState extends State<HomeScreen>
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(25),
-                    topRight: Radius.circular(25),
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
                   ),
                 ),
                 child: ListView(
@@ -574,31 +622,71 @@ class _HomeScreenState extends State<HomeScreen>
                       onTap: () => Navigator.pop(context),
                     ),
                     _buildDrawerItem(
-                      icon: Icons.favorite_outline,
-                      title: 'Favorites',
+                      icon: Icons.music_note_outlined,
+                      title: 'Marsiya',
                       onTap: () {
                         Navigator.pop(context);
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const FavouritesScreen(),
+                            builder: (context) => const MarsiyaScreen(),
                           ),
                         );
                       },
                     ),
                     _buildDrawerItem(
-                      icon: Icons.contact_mail_outlined,
-                      title: 'Contact Us',
+                      icon: Icons.headphones_outlined,
+                      title: 'Noha',
                       onTap: () {
                         Navigator.pop(context);
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const ContactUsScreen(),
+                            builder: (context) => const NohaScreen(),
                           ),
                         );
                       },
                     ),
+                    _buildDrawerItem(
+                      icon: Icons.person_outline,
+                      title: 'Zakirs',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ZakirScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    _buildDrawerItem(
+                      icon: Icons.mic_outlined,
+                      title: 'Noha Khans',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const NohaKhanScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    _buildDrawerItem(
+                      icon: Icons.event_outlined,
+                      title: 'Events',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const EventsScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    const Divider(),
                     _buildDrawerItem(
                       icon: Icons.school_outlined,
                       title: 'Education',
@@ -613,7 +701,7 @@ class _HomeScreenState extends State<HomeScreen>
                       },
                     ),
                     _buildDrawerItem(
-                      icon: Icons.history,
+                      icon: Icons.history_outlined,
                       title: 'History',
                       onTap: () {
                         Navigator.pop(context);
@@ -634,6 +722,19 @@ class _HomeScreenState extends State<HomeScreen>
                           context,
                           MaterialPageRoute(
                             builder: (context) => const AboutUsScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    _buildDrawerItem(
+                      icon: Icons.contact_support_outlined,
+                      title: 'Contact Us',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ContactUsScreen(),
                           ),
                         );
                       },
@@ -666,32 +767,23 @@ class _HomeScreenState extends State<HomeScreen>
     required String title,
     required VoidCallback onTap,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Icon(icon, color: primaryColor, size: 22),
-                const SizedBox(width: 16),
-                Text(
-                  title,
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: textPrimaryColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+      leading: Icon(icon, color: primaryColor, size: 24),
+      title: Text(
+        title,
+        style: GoogleFonts.poppins(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          color: Colors.grey[800],
         ),
       ),
+      trailing: const Icon(
+        Icons.arrow_forward_ios,
+        color: primaryColor,
+        size: 16,
+      ),
+      onTap: onTap,
     );
   }
 
@@ -1034,286 +1126,253 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildArtistsSection() {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Recommended Zakirs Section with enhanced design
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 8,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 2),
+    return Column(
+      children: [
+        // Zakirs Section
+        Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
                 ),
-              ],
-            ),
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 4,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: primaryColor,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "Top Zakirs",
+                          style: GoogleFonts.poppins(
+                            color: textPrimaryColor,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const AllZakirsScreen(),
+                          ),
+                        );
+                      },
+                      child: Row(
                         children: [
-                          Container(
-                            width: 20,
-                            height: 20,
-                            decoration: BoxDecoration(
-                              color: primaryColor.withOpacity(0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.record_voice_over,
+                          Text(
+                            "View All",
+                            style: GoogleFonts.poppins(
                               color: primaryColor,
-                              size: 12,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            "Recommended Zakirs",
-                            style: GoogleFonts.poppins(
-                              color: textPrimaryColor,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.arrow_forward_ios,
+                            color: primaryColor,
+                            size: 12,
                           ),
                         ],
                       ),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const ZakirScreen(),
-                            ),
-                          );
-                        },
-                        child: Row(
-                          children: [
-                            Text(
-                              "View All Zakirs",
-                              style: GoogleFonts.poppins(
-                                color: primaryColor,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.arrow_forward_ios,
-                              color: primaryColor,
-                              size: 12,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                SizedBox(
-                  height: 102,
-                  child:
-                      _isLoadingProfiles
-                          ? Center(
-                            child: SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  primaryColor,
-                                ),
-                                strokeWidth: 2,
+              ),
+              SizedBox(
+                height: 102,
+                child:
+                    _isLoadingProfiles
+                        ? Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                primaryColor,
                               ),
+                              strokeWidth: 2,
                             ),
-                          )
-                          : _profilesByCategory['Zakir']?.isEmpty ?? true
-                          ? Center(
-                            child: Text(
-                              'No Zakirs available',
-                              style: GoogleFonts.poppins(
-                                color: textSecondaryColor,
-                                fontSize: 14,
-                              ),
+                          ),
+                        )
+                        : _profilesByCategory['Zakir']?.isEmpty ?? true
+                        ? Center(
+                          child: Text(
+                            'No Zakirs available',
+                            style: GoogleFonts.poppins(
+                              color: textSecondaryColor,
+                              fontSize: 14,
                             ),
-                          )
-                          : ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            physics: const BouncingScrollPhysics(),
-                            padding: const EdgeInsets.only(left: 16),
-                            itemCount:
-                                _profilesByCategory['Zakir']?.length ?? 0,
-                            itemBuilder: (context, index) {
-                              final profile =
-                                  _profilesByCategory['Zakir']![index];
-                              return AnimationConfiguration.staggeredList(
-                                position: index,
-                                duration: const Duration(milliseconds: 400),
-                                delay: Duration(milliseconds: 50 * index),
-                                child: SlideAnimation(
-                                  horizontalOffset: 30,
-                                  child: FadeInAnimation(
-                                    child: _buildEnhancedArtistCard(
-                                      profile,
-                                      primaryColor,
-                                      "Zakir",
-                                    ),
+                          ),
+                        )
+                        : ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          padding: const EdgeInsets.only(left: 16),
+                          itemCount: _profilesByCategory['Zakir']?.length ?? 0,
+                          itemBuilder: (context, index) {
+                            final profile =
+                                _profilesByCategory['Zakir']![index];
+                            return AnimationConfiguration.staggeredList(
+                              position: index,
+                              duration: const Duration(milliseconds: 400),
+                              delay: Duration(milliseconds: 50 * index),
+                              child: SlideAnimation(
+                                horizontalOffset: 30,
+                                child: FadeInAnimation(
+                                  child: _buildEnhancedArtistCard(
+                                    profile,
+                                    primaryColor,
+                                    "Zakir",
                                   ),
                                 ),
-                              );
-                            },
-                          ),
-                ),
-              ],
-            ),
+                              ),
+                            );
+                          },
+                        ),
+              ),
+            ],
           ),
+        ),
 
-          // Recommended Noha Khans Section with enhanced design
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 8,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 2),
+        // Noha Khans Section
+        Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
                 ),
-              ],
-            ),
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 4,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: accentColor,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "Top Noha Khans",
+                          style: GoogleFonts.poppins(
+                            color: textPrimaryColor,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const AllNohaKhansScreen(),
+                          ),
+                        );
+                      },
+                      child: Row(
                         children: [
-                          Container(
-                            width: 20,
-                            height: 20,
-                            decoration: BoxDecoration(
-                              color: accentColor.withOpacity(0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.mic_external_on,
+                          Text(
+                            "View All",
+                            style: GoogleFonts.poppins(
                               color: accentColor,
-                              size: 12,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            "Recommended Noha Khans",
-                            style: GoogleFonts.poppins(
-                              color: textPrimaryColor,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward_ios,
+                            color: accentColor,
+                            size: 12,
                           ),
                         ],
                       ),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const NohaKhanScreen(),
-                            ),
-                          );
-                        },
-                        child: Row(
-                          children: [
-                            Text(
-                              "View All Noha Khans",
-                              style: GoogleFonts.poppins(
-                                color: accentColor,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.arrow_forward_ios,
-                              color: accentColor,
-                              size: 12,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                SizedBox(
-                  height: 102,
-                  child:
-                      _isLoadingProfiles
-                          ? Center(
-                            child: SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  accentColor,
-                                ),
-                                strokeWidth: 2,
+              ),
+              SizedBox(
+                height: 102,
+                child:
+                    _isLoadingProfiles
+                        ? Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                accentColor,
                               ),
+                              strokeWidth: 2,
                             ),
-                          )
-                          : _profilesByCategory['Noha Khan']?.isEmpty ?? true
-                          ? Center(
-                            child: Text(
-                              'No Noha Khans available',
-                              style: GoogleFonts.poppins(
-                                color: textSecondaryColor,
-                                fontSize: 14,
-                              ),
+                          ),
+                        )
+                        : _profilesByCategory['Noha Khan']?.isEmpty ?? true
+                        ? Center(
+                          child: Text(
+                            'No Noha Khans available',
+                            style: GoogleFonts.poppins(
+                              color: textSecondaryColor,
+                              fontSize: 14,
                             ),
-                          )
-                          : ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            physics: const BouncingScrollPhysics(),
-                            padding: const EdgeInsets.only(left: 16),
-                            itemCount:
-                                _profilesByCategory['Noha Khan']?.length ?? 0,
-                            itemBuilder: (context, index) {
-                              final profile =
-                                  _profilesByCategory['Noha Khan']![index];
-                              return AnimationConfiguration.staggeredList(
-                                position: index,
-                                duration: const Duration(milliseconds: 400),
-                                delay: Duration(milliseconds: 50 * index),
-                                child: SlideAnimation(
-                                  horizontalOffset: 30,
-                                  child: FadeInAnimation(
-                                    child: _buildEnhancedArtistCard(
-                                      profile,
-                                      accentColor,
-                                      "Noha Khan",
-                                    ),
+                          ),
+                        )
+                        : ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          padding: const EdgeInsets.only(left: 16),
+                          itemCount:
+                              _profilesByCategory['Noha Khan']?.length ?? 0,
+                          itemBuilder: (context, index) {
+                            final profile =
+                                _profilesByCategory['Noha Khan']![index];
+                            return AnimationConfiguration.staggeredList(
+                              position: index,
+                              duration: const Duration(milliseconds: 400),
+                              delay: Duration(milliseconds: 50 * index),
+                              child: SlideAnimation(
+                                horizontalOffset: 30,
+                                child: FadeInAnimation(
+                                  child: _buildEnhancedArtistCard(
+                                    profile,
+                                    accentColor,
+                                    "Noha Khan",
                                   ),
                                 ),
-                              );
-                            },
-                          ),
-                ),
-              ],
-            ),
+                              ),
+                            );
+                          },
+                        ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1521,22 +1580,6 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ),
         _buildFeatureGrid(),
-        const SizedBox(height: 12),
-        _isLoadingAds
-            ? SizedBox(
-              height: 120,
-              child: Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
-                  strokeWidth: 2,
-                ),
-              ),
-            )
-            : SponsoredAdBanner(
-              adItems: _adItems.reversed.toList(),
-              height: 120,
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            ),
         const SizedBox(height: 20), // Add extra space at the bottom
       ],
     );
@@ -1876,12 +1919,6 @@ class _HomeScreenState extends State<HomeScreen>
               MaterialPageRoute(builder: (context) => const ContactUsScreen()),
             );
             break;
-          case 'Favourites':
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const FavouritesScreen()),
-            );
-            break;
           case 'Help Us':
             Navigator.push(
               context,
@@ -2078,6 +2115,125 @@ class _HomeScreenState extends State<HomeScreen>
     } catch (e) {
       debugPrint('Error fetching profiles: $e');
       setState(() => _isLoadingProfiles = false);
+    }
+  }
+
+  // Build footer section
+  Widget _buildFooter() {
+    return Container(
+      margin: const EdgeInsets.only(top: 24, bottom: 24),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: GestureDetector(
+              onTap: () => _launchUrl('https://algodream.in'),
+              child: Column(
+                children: [
+                  // Logo image
+                  ClipOval(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        boxShadow: [
+                          BoxShadow(
+                            color: primaryColor.withOpacity(0.2),
+                            blurRadius: 10,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: Image.asset(
+                        'assets/images/adts-circle.png',
+                        width: 70,
+                        height: 70,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Designed & Developed by',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: textSecondaryColor,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'ADTS',
+                    style: GoogleFonts.poppins(
+                      fontSize: 22,
+                      color: primaryColor,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'https://algodream.in',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: primaryColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Icon(Icons.open_in_new, color: primaryColor, size: 14),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '© 2024 AlgoDream Technologies',
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              color: textSecondaryColor,
+              fontWeight: FontWeight.w400,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _launchUrl(String url) async {
+    if (await canLaunch(url)) {
+      await launch(url);
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not launch $url')));
     }
   }
 }

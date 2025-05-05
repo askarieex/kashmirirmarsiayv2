@@ -2,7 +2,7 @@ name: Marsiya
 description: A new Flutter project.
 
 publish_to: 'none' 
-version: 1.0.0+5
+version: 1.0.0+6
 
 environment:
   sdk: ^3.7.0
@@ -44,20 +44,23 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/unnamed.png"
+  image_path: "assets/images/marsiyalogo.png"
   adaptive_icon_background: "#ffffff"
-  adaptive_icon_foreground: "assets/images/unnamed.png"
+  adaptive_icon_foreground: "assets/images/marsiyalogo.png"
+  adaptive_icon_padding: true
+  image_path_android: "assets/images/marsiyalogo.png"
+  adaptive_icon_foreground_scale_factor: 0.8
   remove_alpha_ios: true
   min_sdk_android: 21
   web:
     generate: true
-    image_path: "assets/images/unnamed.png"
+    image_path: "assets/images/marsiyalogo.png"
   windows:
     generate: true
-    image_path: "assets/images/unnamed.png"
+    image_path: "assets/images/marsiyalogo.png"
   macos:
     generate: true
-    image_path: "assets/images/unnamed.png"
+    image_path: "assets/images/marsiyalogo.png"
 
 flutter:
   uses-material-design: true
@@ -65,3 +68,4 @@ flutter:
     - assets/images/logo.png
     - assets/images/karbala.jpg
     - assets/images/unnamed.png
+    - assets/images/adts-circle.png
