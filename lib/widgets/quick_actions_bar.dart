@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class QuickActionsBar extends StatelessWidget {
-  const QuickActionsBar({Key? key}) : super(key: key);
+  const QuickActionsBar({super.key});
 
   // Define colors for consistency
   static const Color primaryColor = Color(0xFF00875A);

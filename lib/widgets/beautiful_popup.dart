@@ -1,6 +1,8 @@
+import 'dart:ui';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class BeautifulPopup extends StatelessWidget {
   final String message;
@@ -11,7 +13,9 @@ class BeautifulPopup extends StatelessWidget {
     super.key,
     required this.message,
     required this.onClose,
-    this.accentColor = const Color(0xFF008F41), // Default green accent color
+    this.accentColor = const Color(
+      0xFF7B2CBF,
+    ), // Updated to purple accent color
   });
 
   @override
@@ -19,130 +23,229 @@ class BeautifulPopup extends StatelessWidget {
     return Dialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20),
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: 340,
           maxHeight: MediaQuery.of(context).size.height * 0.8,
         ),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: accentColor.withOpacity(0.5), width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: accentColor.withOpacity(0.2),
-                blurRadius: 20,
-                spreadRadius: 1,
-                offset: const Offset(0, 10),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // Blurred background
+            Positioned.fill(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(color: Colors.transparent),
               ),
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 25,
-                offset: const Offset(0, 15),
-              ),
-            ],
-            gradient: LinearGradient(
-              colors: [Colors.white, Color(0xFFF0F8F6), Color(0xFFE6F5F0)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
             ),
-          ),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              // Decorative background circles
-              Positioned(
-                top: -10,
-                right: -10,
+
+            // Main container with enhanced gradient
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.white, Color(0xFFF2E9FF), Color(0xFFE2D1FF)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: accentColor.withOpacity(0.3),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: accentColor.withOpacity(0.25),
+                    blurRadius: 25,
+                    spreadRadius: 1,
+                    offset: const Offset(0, 10),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 30,
+                    offset: const Offset(0, 15),
+                  ),
+                ],
+              ),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // Decorative background elements
+                  Positioned(
+                    top: -15,
+                    right: -15,
+                    child: Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [
+                            accentColor.withOpacity(0.1),
+                            accentColor.withOpacity(0.05),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: -20,
+                    left: -20,
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [
+                            accentColor.withOpacity(0.1),
+                            accentColor.withOpacity(0.05),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 40,
+                    left: 20,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: accentColor.withOpacity(0.07),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 60,
+                    right: 25,
+                    child: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: accentColor.withOpacity(0.05),
+                      ),
+                    ),
+                  ),
+
+                  // Scrollable content
+                  SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 34, 24, 34),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildIconContainer(accentColor),
+                          const SizedBox(height: 24),
+                          _buildTitle(accentColor),
+                          const SizedBox(height: 20),
+                          _buildMessageText(message),
+                          const SizedBox(height: 32),
+                          _buildCloseButton(accentColor, context),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Close icon at the top right corner
+            Positioned(
+              top: -10,
+              right: -10,
+              child: GestureDetector(
+                onTap: onClose,
                 child: Container(
-                  width: 80,
-                  height: 80,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: accentColor.withOpacity(0.05),
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: -15,
-                left: -15,
-                child: Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: accentColor.withOpacity(0.07),
-                  ),
-                ),
-              ),
-              // Scrollable content
-              SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 34, 24, 34),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildIconContainer(accentColor),
-                      const SizedBox(height: 20),
-                      _buildTitle(accentColor),
-                      const SizedBox(height: 16),
-                      _buildMessageText(message),
-                      const SizedBox(height: 32),
-                      _buildCloseButton(accentColor),
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        spreadRadius: 1,
+                        offset: const Offset(0, 2),
+                      ),
                     ],
                   ),
+                  child: Center(
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: 20,
+                      color: accentColor,
+                    ),
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // Icon container with shadow and accent color
+  // Enhanced icon container with better shadows and effects
   Widget _buildIconContainer(Color accentColor) {
     return Container(
-      width: 75,
-      height: 75,
+      width: 85,
+      height: 85,
       decoration: BoxDecoration(
-        color: Colors.white,
+        gradient: LinearGradient(
+          colors: [Colors.white, Color(0xFFF5F0FF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         shape: BoxShape.circle,
         border: Border.all(color: accentColor.withOpacity(0.3), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: accentColor.withOpacity(0.15),
-            blurRadius: 12,
+            color: accentColor.withOpacity(0.2),
+            blurRadius: 15,
             spreadRadius: 0,
-            offset: const Offset(0, 5),
+            offset: const Offset(0, 7),
           ),
         ],
       ),
       child: Center(
         child: Container(
-          width: 58,
-          height: 58,
+          width: 65,
+          height: 65,
           decoration: BoxDecoration(
-            color: accentColor.withOpacity(0.12),
+            gradient: LinearGradient(
+              colors: [
+                accentColor.withOpacity(0.15),
+                accentColor.withOpacity(0.08),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             shape: BoxShape.circle,
           ),
           child: Icon(
-            Icons.notifications_active_outlined,
+            Icons.notifications_active_rounded,
             color: accentColor,
-            size: 30,
+            size: 32,
           ),
         ),
       ),
     );
   }
 
-  // Title text with accent color
+  // Enhanced title with better typography
   Widget _buildTitle(Color accentColor) {
     return Text(
-      'Alert',
-      style: TextStyle(
-        fontSize: 20,
+      'New Message',
+      style: GoogleFonts.poppins(
+        fontSize: 22,
         fontWeight: FontWeight.bold,
         color: accentColor,
         letterSpacing: 0.3,
@@ -150,17 +253,17 @@ class BeautifulPopup extends StatelessWidget {
     );
   }
 
-  // Message text with clickable URLs
+  // Enhanced message text with improved styling
   Widget _buildMessageText(String message) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: RichText(
         textAlign: TextAlign.center,
         text: TextSpan(
-          style: const TextStyle(
+          style: GoogleFonts.nunitoSans(
             fontSize: 16,
             color: Colors.black87,
-            height: 1.5,
+            height: 1.6,
             letterSpacing: 0.2,
           ),
           children: _parseMessage(message),
@@ -169,7 +272,7 @@ class BeautifulPopup extends StatelessWidget {
     );
   }
 
-  // Parse message to detect and make URLs clickable
+  // Parse message to detect and make URLs clickable (unchanged logic)
   List<TextSpan> _parseMessage(String message) {
     final urlPattern = RegExp(r'https?://[^\s]+');
     final matches = urlPattern.allMatches(message);
@@ -184,9 +287,10 @@ class BeautifulPopup extends StatelessWidget {
       spans.add(
         TextSpan(
           text: url,
-          style: const TextStyle(
-            color: Colors.blue,
+          style: GoogleFonts.nunitoSans(
+            color: Colors.blue.shade700,
             decoration: TextDecoration.underline,
+            fontWeight: FontWeight.w500,
           ),
           recognizer: TapGestureRecognizer()..onTap = () => _launchURL(url),
         ),
@@ -199,7 +303,7 @@ class BeautifulPopup extends StatelessWidget {
     return spans;
   }
 
-  // Launch URL in external browser
+  // Launch URL in external browser (unchanged logic)
   Future<void> _launchURL(String url) async {
     final Uri uri = Uri.parse(url);
     try {
@@ -213,33 +317,50 @@ class BeautifulPopup extends StatelessWidget {
     }
   }
 
-  // Close button with custom styling
-  Widget _buildCloseButton(Color accentColor) {
+  // Completely redesigned close button with gradient and effects
+  Widget _buildCloseButton(Color accentColor, BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onClose,
         borderRadius: BorderRadius.circular(50),
+        splashColor: accentColor.withOpacity(0.1),
+        highlightColor: accentColor.withOpacity(0.05),
         child: Container(
-          width: 120,
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          width: 160,
+          padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
-            color: Colors.white,
+            gradient: LinearGradient(
+              colors: [accentColor, Color(0xFF9747FF)],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
             borderRadius: BorderRadius.circular(50),
-            border: Border.all(color: Colors.grey.shade300, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: accentColor.withOpacity(0.3),
+                blurRadius: 12,
+                spreadRadius: 0,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.close, size: 18, color: Colors.grey.shade700),
+              Icon(
+                Icons.check_circle_outline_rounded,
+                size: 20,
+                color: Colors.white,
+              ),
               const SizedBox(width: 8),
               Text(
-                'Close',
-                style: TextStyle(
-                  color: Colors.grey.shade700,
+                'Got It',
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
                   fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                  letterSpacing: 0.3,
+                  fontSize: 15,
+                  letterSpacing: 0.5,
                 ),
               ),
             ],
@@ -268,11 +389,12 @@ class MyApp extends StatelessWidget {
             onPressed: () {
               showDialog(
                 context: context,
-                builder: (context) => BeautifulPopup(
-                  message:
-                      'Visit https://example.com or https://flutter.dev for details.',
-                  onClose: () => Navigator.of(context).pop(),
-                ),
+                builder:
+                    (context) => BeautifulPopup(
+                      message:
+                          'Visit https://example.com or https://flutter.dev for details.',
+                      onClose: () => Navigator.of(context).pop(),
+                    ),
               );
             },
             child: const Text('Show Popup'),

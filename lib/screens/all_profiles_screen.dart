@@ -6,7 +6,7 @@ import '../services/profile_service.dart';
 import 'view_profile_screen.dart';
 
 class AllProfilesScreen extends StatefulWidget {
-  const AllProfilesScreen({Key? key}) : super(key: key);
+  const AllProfilesScreen({super.key});
 
   @override
   State<AllProfilesScreen> createState() => _AllProfilesScreenState();

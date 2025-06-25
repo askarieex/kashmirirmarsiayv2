@@ -4,18 +4,17 @@ import 'package:http/http.dart' as http;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/artist_item.dart';
-import '../services/profile_service.dart';
-import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'full_marsiya_audio_play.dart';
 import 'full_noha_audio_play.dart';
 import 'dart:ui' as ui;
 import 'dart:math' as math;
+import 'package:iconly/iconly.dart';
+import 'package:marquee/marquee.dart';
 
 class ViewProfileScreen extends StatefulWidget {
   final String profileId;
 
-  const ViewProfileScreen({Key? key, required this.profileId})
-    : super(key: key);
+  const ViewProfileScreen({super.key, required this.profileId});
 
   @override
   State<ViewProfileScreen> createState() => _ViewProfileScreenState();
@@ -34,11 +33,9 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
   bool _showTitle = false;
 
   // Enhanced color palette
-  static const Color primaryColor = Color(0xFF4CAF8C); // Softer green
-  static const Color accentColor = Color(0xFFFFB74D); // Softer amber
-  static const Color backgroundColor = Color(
-    0xFFF7FBF9,
-  ); // Even lighter background
+  static const Color primaryColor = Color(0xFF1A8754);
+  static const Color accentColor = Color(0xFF0D7148);
+  static const Color backgroundColor = Colors.white;
   static const Color cardColor = Colors.white;
   static const Color textPrimaryColor = Color(0xFF1F2937);
   static const Color textSecondaryColor = Color(0xFF6B7280);
@@ -50,10 +47,10 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
     _tabController = TabController(length: 2, vsync: this);
     _scrollController = ScrollController();
 
-    _scrollController.addListener(() {
-      setState(() {
-        _showTitle = _scrollController.offset > 180;
-      });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _scrollController.addListener(_updateScrollPosition);
+      }
     });
 
     _tabController.addListener(() {
@@ -65,9 +62,18 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
     _fetchAuthorContent();
   }
 
+  void _updateScrollPosition() {
+    if (_scrollController.hasClients && mounted) {
+      setState(() {
+        _showTitle = _scrollController.offset > 180;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
+    _scrollController.removeListener(_updateScrollPosition);
     _scrollController.dispose();
     super.dispose();
   }
@@ -166,7 +172,7 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
             const SizedBox(height: 24),
             Text(
               'Loading Artist Profile',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.nunitoSans(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: Colors.white,
@@ -200,7 +206,7 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
               ),
               child: Center(
                 child: Icon(
-                  Icons.error_outline_rounded,
+                  IconlyLight.danger,
                   size: 50,
                   color: Colors.white.withOpacity(0.9),
                 ),
@@ -209,7 +215,7 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
             const SizedBox(height: 24),
             Text(
               'Failed to load profile',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.nunitoSans(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: Colors.white,
@@ -232,7 +238,7 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
               ),
               child: Text(
                 'Try Again',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.nunitoSans(
                   fontWeight: FontWeight.w600,
                   fontSize: 15,
                 ),
@@ -250,620 +256,270 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
       headerSliverBuilder: (context, innerBoxIsScrolled) {
         return [
           SliverAppBar(
-            expandedHeight: 340,
-            floating: false,
+            expandedHeight: 320,
             pinned: true,
-            elevation: 0,
             backgroundColor: primaryColor,
-            stretch: true,
-            title: AnimatedOpacity(
-              opacity: _showTitle ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 200),
-              child: Text(
-                _profile?.name ?? '',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(IconlyLight.arrow_left_2, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
             ),
-            leading: Container(
-              margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ),
-            actions: [
-              Container(
-                margin: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.share, color: Colors.white),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text("Sharing ${_profile!.name}'s profile"),
+            title:
+                _showTitle
+                    ? Text(
+                      _profile?.name ?? '',
+                      style: GoogleFonts.nunitoSans(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
                       ),
-                    );
-                  },
+                    )
+                    : null,
+            flexibleSpace: FlexibleSpaceBar(
+              background: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Background gradient with pattern
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [primaryColor, primaryColor.withOpacity(0.8)],
+                      ),
+                    ),
+                    child: CustomPaint(painter: PatternPainter(opacity: 0.1)),
+                  ),
+                  // Profile content
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Hero(
+                                tag: 'profile_${_profile?.id}',
+                                child: Container(
+                                  width: 110,
+                                  height: 110,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 3,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: 10,
+                                        spreadRadius: 2,
+                                      ),
+                                    ],
+                                  ),
+                                  child: ClipOval(
+                                    child: CachedNetworkImage(
+                                      imageUrl: _profile?.profileImage ?? '',
+                                      fit: BoxFit.cover,
+                                      placeholder:
+                                          (context, url) => Container(
+                                            color: Colors.grey.shade200,
+                                            child: const Center(
+                                              child: CircularProgressIndicator(
+                                                color: primaryColor,
+                                              ),
+                                            ),
+                                          ),
+                                      errorWidget:
+                                          (context, url, error) => const Icon(
+                                            IconlyLight.profile,
+                                            size: 50,
+                                            color: Colors.grey,
+                                          ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 20),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _profile?.name ?? '',
+                                      style: GoogleFonts.nunitoSans(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        _profile?.category ?? '',
+                                        style: GoogleFonts.nunitoSans(
+                                          fontSize: 14,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildStatItem(
+                                IconlyLight.voice,
+                                '${_marsiya.length}',
+                                'Marsiya',
+                              ),
+                              _buildStatItem(
+                                IconlyLight.voice,
+                                '${_noha.length}',
+                                'Noha',
+                              ),
+                              _buildStatItem(
+                                IconlyLight.show,
+                                '${_profile?.totalViews ?? 0}',
+                                'Views',
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(50),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(30),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      spreadRadius: 0,
+                    ),
+                  ],
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  indicatorColor: primaryColor,
+                  indicatorWeight: 3,
+                  labelColor: primaryColor,
+                  unselectedLabelColor: textSecondaryColor,
+                  labelStyle: GoogleFonts.nunitoSans(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                  unselectedLabelStyle: GoogleFonts.nunitoSans(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 15,
+                  ),
+                  tabs: [
+                    Tab(
+                      icon: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(IconlyLight.voice, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Marsiya',
+                            style: GoogleFonts.nunitoSans(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Tab(
+                      icon: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(IconlyLight.voice, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Noha',
+                            style: GoogleFonts.nunitoSans(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-            flexibleSpace: FlexibleSpaceBar(background: _buildProfileHeader()),
+            ),
           ),
         ];
       },
-      body: Container(
-        color: backgroundColor,
-        child: ListView(
-          padding: EdgeInsets.zero,
-          physics: const BouncingScrollPhysics(),
-          children: [
-            _buildContentHighlight(),
-            _buildTabSection(),
-            if (_profile?.description != null &&
-                _profile!.description!.isNotEmpty)
-              _buildAboutSection(),
-            const SizedBox(height: 30),
-          ],
-        ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildContentList(_marsiya, true),
+          _buildContentList(_noha, false),
+        ],
       ),
     );
   }
 
-  Widget _buildProfileHeader() {
-    return Stack(
+  Widget _buildStatItem(IconData icon, String value, String label) {
+    return Column(
       children: [
-        // Gradient background with app theme colors - lighter and more beautiful
         Container(
+          padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF4CAF8C), // Softer green
-                Color(0xFF83D6B9), // Very light teal
-              ],
-              stops: [0.3, 1.0],
-            ),
+            color: Colors.white.withOpacity(0.2),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: Colors.white, size: 20),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: GoogleFonts.nunitoSans(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
           ),
         ),
-
-        // Pattern overlay with lighter transparency
-        Positioned.fill(
-          child: CustomPaint(painter: PatternPainter(opacity: 0.05)),
-        ),
-
-        // Content with improved vertical alignment
-        SafeArea(
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 20),
-
-                // Profile image with animation
-                Container(
-                  width: 140,
-                  height: 140,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 6),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.12),
-                        blurRadius: 20,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                  child: Hero(
-                    tag: 'profile-${widget.profileId}',
-                    child: ClipOval(
-                      child: CachedNetworkImage(
-                        imageUrl: _profile!.imageUrl,
-                        fit: BoxFit.cover,
-                        placeholder:
-                            (context, url) => Container(
-                              color: Colors.grey[100],
-                              child: const Center(
-                                child: CircularProgressIndicator(
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
-                                  ),
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            ),
-                        errorWidget:
-                            (context, url, error) => Container(
-                              color: Colors.grey[100],
-                              child: const Icon(
-                                Icons.person,
-                                color: Colors.white,
-                                size: 60,
-                              ),
-                            ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Artist name - centered and enhanced
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Text(
-                    _profile!.name,
-                    style: GoogleFonts.poppins(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: 0.5,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withOpacity(0.12),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Category badge with softer colors
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.2),
-                      width: 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _profile!.category == 'Zakir'
-                            ? Icons.music_note
-                            : Icons.headphones,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _profile!.category,
-                        style: GoogleFonts.poppins(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+        Text(
+          label,
+          style: GoogleFonts.nunitoSans(
+            fontSize: 19,
+            color: Colors.white.withOpacity(0.9),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildContentHighlight() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            spreadRadius: 0,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: Border.all(color: dividerColor, width: 1),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              // Icon container with gradient
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      primaryColor,
-                      Color(0xFF83D6B9), // Light teal
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(15),
-                  boxShadow: [
-                    BoxShadow(
-                      color: primaryColor.withOpacity(0.15),
-                      blurRadius: 8,
-                      spreadRadius: 0,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.library_music_rounded,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              // Text info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Total Collection',
-                      style: GoogleFonts.poppins(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: textSecondaryColor,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Text(
-                          _totalContentCount.toString(),
-                          style: GoogleFonts.poppins(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: primaryColor,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          _profile?.category == 'Both'
-                              ? 'Tracks (Marsiya & Noha)'
-                              : _profile?.category == 'Zakir'
-                              ? 'Marsiya Tracks'
-                              : 'Noha Tracks',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: textSecondaryColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabSection() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            spreadRadius: 0,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: Border.all(color: dividerColor, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-            child: Row(
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [accentColor, accentColor.withOpacity(0.7)],
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: accentColor.withOpacity(0.15),
-                        blurRadius: 6,
-                        spreadRadius: 0,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.queue_music_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  "Audio Collection",
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: textPrimaryColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Enhanced tab bar with app theme colors
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            height: 56,
-            decoration: BoxDecoration(
-              color: backgroundColor,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              labelColor: Colors.white,
-              unselectedLabelColor: textSecondaryColor,
-              indicator: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [primaryColor, Color(0xFF83D6B9)], // Light teal
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: primaryColor.withOpacity(0.15),
-                    blurRadius: 8,
-                    spreadRadius: 0,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              tabs: [
-                Tab(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.music_note, size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        "Marsiya (${_marsiya.length})",
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                ),
-                Tab(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.headphones, size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        "Noha (${_noha.length})",
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Play all button with gradient
-          if ((_tabController.index == 0 && _marsiya.isNotEmpty) ||
-              (_tabController.index == 1 && _noha.isNotEmpty))
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [accentColor, accentColor.withOpacity(0.8)],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: accentColor.withOpacity(0.15),
-                      blurRadius: 8,
-                      spreadRadius: 0,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(16),
-                  child: InkWell(
-                    onTap: _playFirstItemInCurrentTab,
-                    borderRadius: BorderRadius.circular(16),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.play_circle_outline,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            "Play All Collection",
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-          // Content list with improved spacing
-          Container(
-            constraints: BoxConstraints(
-              minHeight: 200,
-              maxHeight: MediaQuery.of(context).size.height * 0.5,
-            ),
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                // Marsiya Tab
-                _isLoading
-                    ? _buildLoadingContent()
-                    : _marsiya.isEmpty
-                    ? _buildEmptyContent("No Marsiya content available")
-                    : _buildContentList(_marsiya),
-
-                // Noha Tab
-                _isLoading
-                    ? _buildLoadingContent()
-                    : _noha.isEmpty
-                    ? _buildEmptyContent("No Noha content available")
-                    : _buildContentList(_noha),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAboutSection() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            spreadRadius: 0,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [primaryColor, Color(0xFF4ECDC4)],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: primaryColor.withOpacity(0.2),
-                      blurRadius: 6,
-                      spreadRadius: 0,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(Icons.person, color: Colors.white, size: 20),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Text(
-                "About ${_profile!.name}",
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: textPrimaryColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Text(
-            _profile!.description!,
-            style: GoogleFonts.poppins(
-              fontSize: 15,
-              height: 1.7,
-              color: textPrimaryColor.withOpacity(0.8),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyContent(String message) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
+  Widget _buildContentList(List<dynamic> content, bool isMarsiya) {
+    if (content.isEmpty) {
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -875,309 +531,259 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
+                    color: Colors.black.withOpacity(0.05),
                     blurRadius: 10,
-                    spreadRadius: 0,
-                    offset: const Offset(0, 5),
+                    spreadRadius: 2,
                   ),
                 ],
               ),
-              child: Center(
-                child: Icon(
-                  _tabController.index == 0
-                      ? Icons.music_off_outlined
-                      : Icons.headset_off_outlined,
-                  size: 40,
-                  color: Colors.grey.shade400,
-                ),
+              child: Icon(
+                IconlyLight.voice,
+                size: 50,
+                color: Colors.grey.shade400,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             Text(
-              message,
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: textSecondaryColor,
+              'No ${isMarsiya ? 'Marsiya' : 'Noha'} Available',
+              style: GoogleFonts.nunitoSans(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade600,
               ),
-              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              "Check back later for new content",
-              style: GoogleFonts.poppins(
+              'This artist hasn\'t uploaded any ${isMarsiya ? 'marsiya' : 'noha'} yet.',
+              style: GoogleFonts.nunitoSans(
                 fontSize: 14,
-                color: textSecondaryColor.withOpacity(0.7),
+                color: Colors.grey.shade500,
               ),
               textAlign: TextAlign.center,
             ),
           ],
         ),
-      ),
-    );
-  }
+      );
+    }
 
-  Widget _buildContentList(List<dynamic> contentItems) {
     return ListView.builder(
-      physics: const NeverScrollableScrollPhysics(),
-      shrinkWrap: true,
-      padding: const EdgeInsets.only(bottom: 16),
-      itemCount: contentItems.length,
+      padding: const EdgeInsets.all(16),
+      itemCount: content.length,
       itemBuilder: (context, index) {
-        return _buildContentItem(contentItems[index], index);
-      },
-    );
-  }
-
-  Widget _buildContentItem(dynamic item, int index) {
-    final title = item['title'] ?? 'Untitled';
-    final duration = item['duration'] ?? '';
-    final contentId = item['id']?.toString() ?? '';
-    final isMarisya = _tabController.index == 0;
-
-    // Colors based on content type - lighter colors
-    final List<Color> gradientColors =
-        isMarisya
-            ? [primaryColor, Color(0xFF83D6B9)] // Light teal
-            : [accentColor, Color(0xFFFFD180)]; // Light amber
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: dividerColor),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 5,
-            spreadRadius: 0,
-            offset: const Offset(0, 2),
+        final item = content[index];
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                spreadRadius: 0,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            if (contentId.isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("Error: Unable to play content (ID not found)"),
-                ),
-              );
-              return;
-            }
-
-            if (isMarisya) {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder:
-                      (context) => FullMarsiyaAudioPlay(
-                        audioId: contentId,
-                        autoPlay: true,
-                      ),
-                ),
-              );
-            } else {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder:
-                      (context) =>
-                          FullNohaAudioPlay(nohaId: contentId, autoPlay: true),
-                ),
-              );
-            }
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                // Play button with gradient
-                Container(
-                  width: 54,
-                  height: 54,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: gradientColors,
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: gradientColors[0].withOpacity(0.15),
-                        blurRadius: 8,
-                        spreadRadius: 0,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) =>
+                            isMarsiya
+                                ? FullMarsiyaAudioPlay(
+                                  audioId: item['id'].toString(),
+                                )
+                                : FullNohaAudioPlay(
+                                  nohaId: item['id'].toString(),
+                                ),
                   ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.play_arrow_rounded,
-                      color: Colors.white,
-                      size: 32,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                // Content details
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                          color: textPrimaryColor,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            spreadRadius: 0,
+                          ),
+                        ],
                       ),
-                      if (duration.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: gradientColors[0].withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.access_time,
-                                size: 12,
-                                color: gradientColors[0],
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            CachedNetworkImage(
+                              imageUrl: item['image_url'] ?? '',
+                              fit: BoxFit.cover,
+                              placeholder:
+                                  (context, url) => Container(
+                                    color: Colors.grey.shade100,
+                                    child: const Center(
+                                      child: CircularProgressIndicator(
+                                        color: primaryColor,
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  ),
+                              errorWidget:
+                                  (context, url, error) => Container(
+                                    color: Colors.grey.shade100,
+                                    child: const Icon(
+                                      IconlyLight.image,
+                                      size: 30,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                            ),
+                            Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.transparent,
+                                    Colors.black.withOpacity(0.3),
+                                  ],
+                                ),
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                duration,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: gradientColors[0],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item['title'] ?? '',
+                            style: GoogleFonts.nunitoSans(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: textPrimaryColor,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: primaryColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      IconlyLight.show,
+                                      size: 14,
+                                      color: primaryColor,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${item['views'] ?? 0}',
+                                      style: GoogleFonts.nunitoSans(
+                                        fontSize: 12,
+                                        color: primaryColor,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      IconlyLight.calendar,
+                                      size: 14,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      item['uploaded_date'] != null
+                                          ? DateTime.parse(
+                                            item['uploaded_date'],
+                                          ).toString().split(' ')[0]
+                                          : '',
+                                      style: GoogleFonts.nunitoSans(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade600,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                // Icon
-                Container(
-                  height: 36,
-                  width: 36,
-                  decoration: BoxDecoration(
-                    color: gradientColors[0].withOpacity(0.08),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Icon(
-                      Icons.arrow_forward_ios,
-                      size: 14,
-                      color: gradientColors[0],
+                        ],
+                      ),
                     ),
-                  ),
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [primaryColor, accentColor],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: primaryColor.withOpacity(0.3),
+                            blurRadius: 8,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        IconlyLight.play,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLoadingContent() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const SizedBox(height: 30),
-          SizedBox(
-            width: 60,
-            height: 60,
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(
-                _tabController.index == 0 ? primaryColor : accentColor,
               ),
-              strokeWidth: 3,
             ),
           ),
-          const SizedBox(height: 20),
-          Text(
-            "Loading content...",
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              color: textSecondaryColor,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 30),
-        ],
-      ),
+        );
+      },
     );
-  }
-
-  String _formatNumber(int number) {
-    if (number >= 1000000) {
-      return '${(number / 1000000).toStringAsFixed(1)}M';
-    } else if (number >= 1000) {
-      return '${(number / 1000).toStringAsFixed(1)}K';
-    } else {
-      return number.toString();
-    }
-  }
-
-  void _playFirstItemInCurrentTab() {
-    final currentTab = _tabController.index;
-    final List<dynamic> contentList = currentTab == 0 ? _marsiya : _noha;
-
-    if (contentList.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No content available to play")),
-      );
-      return;
-    }
-
-    final firstItem = contentList.first;
-    final contentId = firstItem['id']?.toString() ?? '';
-
-    if (contentId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Error: Unable to play content (ID not found)"),
-        ),
-      );
-      return;
-    }
-
-    if (currentTab == 0) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder:
-              (context) =>
-                  FullMarsiyaAudioPlay(audioId: contentId, autoPlay: true),
-        ),
-      );
-    } else {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder:
-              (context) => FullNohaAudioPlay(nohaId: contentId, autoPlay: true),
-        ),
-      );
-    }
   }
 }
 

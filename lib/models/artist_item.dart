@@ -4,6 +4,8 @@ class ArtistItem {
   final String imageUrl;
   final String category;
   final String? description;
+  final String profileImage;
+  final int totalViews;
 
   ArtistItem({
     required this.id,
@@ -11,6 +13,8 @@ class ArtistItem {
     required this.imageUrl,
     required this.category,
     this.description,
+    required this.profileImage,
+    required this.totalViews,
   });
 
   factory ArtistItem.fromJson(Map<String, dynamic> json) {
@@ -20,6 +24,8 @@ class ArtistItem {
       imageUrl: json['profile_image'] ?? '',
       category: json['category'] ?? '',
       description: json['description'],
+      profileImage: json['profile_image'] ?? '',
+      totalViews: int.tryParse(json['total_views']?.toString() ?? '0') ?? 0,
     );
   }
 }

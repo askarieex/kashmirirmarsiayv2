@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:iconly/iconly.dart';
 import 'view_profile_screen.dart';
 
 class NohaKhanProfile {
@@ -138,7 +139,7 @@ class _AllNohaKhansScreenState extends State<AllNohaKhansScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9F9),
+      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
       appBar: _buildAppBar(),
       body: _buildBody(),
     );
@@ -146,7 +147,7 @@ class _AllNohaKhansScreenState extends State<AllNohaKhansScreen> {
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: _isSearchActive ? Colors.white : const Color(0xFF4ECDC4),
+      backgroundColor: _isSearchActive ? Colors.white : const Color(0xFF00875A),
       elevation: _isSearchActive ? 0 : 0,
       centerTitle: !_isSearchActive,
       title:
@@ -154,7 +155,7 @@ class _AllNohaKhansScreenState extends State<AllNohaKhansScreen> {
               ? _buildSearchField()
               : Text(
                 'Noha Khans',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.nunitoSans(
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
@@ -162,17 +163,20 @@ class _AllNohaKhansScreenState extends State<AllNohaKhansScreen> {
       leading:
           _isSearchActive
               ? IconButton(
-                icon: const Icon(Icons.arrow_back, color: Color(0xFF4ECDC4)),
+                icon: const Icon(
+                  IconlyLight.arrow_left_2,
+                  color: Color(0xFF00875A),
+                ),
                 onPressed: _toggleSearch,
               )
               : IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                icon: const Icon(IconlyLight.arrow_left, color: Colors.white),
                 onPressed: () => Navigator.pop(context),
               ),
       actions: [
         if (!_isSearchActive)
           IconButton(
-            icon: const Icon(Icons.search, color: Colors.white),
+            icon: const Icon(IconlyLight.search, color: Colors.white),
             onPressed: _toggleSearch,
           ),
       ],
@@ -185,16 +189,19 @@ class _AllNohaKhansScreenState extends State<AllNohaKhansScreen> {
       focusNode: _searchFocusNode,
       decoration: InputDecoration(
         hintText: 'Search noha khans...',
-        hintStyle: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 16),
+        hintStyle: GoogleFonts.nunitoSans(
+          color: Colors.grey[400],
+          fontSize: 16,
+        ),
         border: InputBorder.none,
         prefixIcon: Icon(
-          Icons.search,
-          color: const Color(0xFF4ECDC4).withOpacity(0.7),
+          IconlyLight.search,
+          color: const Color(0xFF00875A).withOpacity(0.7),
         ),
         suffixIcon:
             _searchController.text.isNotEmpty
                 ? IconButton(
-                  icon: const Icon(Icons.clear, color: Color(0xFF4ECDC4)),
+                  icon: const Icon(Icons.clear, color: Color(0xFF00875A)),
                   onPressed: () {
                     _searchController.clear();
                   },
@@ -210,7 +217,7 @@ class _AllNohaKhansScreenState extends State<AllNohaKhansScreen> {
     if (_isLoading) {
       return const Center(
         child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4ECDC4)),
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00875A)),
         ),
       );
     }
@@ -231,7 +238,7 @@ class _AllNohaKhansScreenState extends State<AllNohaKhansScreen> {
             ElevatedButton(
               onPressed: _fetchNohaKhans,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4ECDC4),
+                backgroundColor: const Color(0xFF00875A),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
@@ -256,7 +263,7 @@ class _AllNohaKhansScreenState extends State<AllNohaKhansScreen> {
             Icon(
               _searchController.text.isNotEmpty
                   ? Icons.search_off
-                  : Icons.mic_off,
+                  : Icons.person_off,
               color: Colors.grey[400],
               size: 80,
             ),
@@ -282,7 +289,7 @@ class _AllNohaKhansScreenState extends State<AllNohaKhansScreen> {
                   child: Text(
                     'Clear Search',
                     style: GoogleFonts.poppins(
-                      color: const Color(0xFF4ECDC4),
+                      color: const Color(0xFF00875A),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -295,9 +302,9 @@ class _AllNohaKhansScreenState extends State<AllNohaKhansScreen> {
 
     return RefreshIndicator(
       onRefresh: _fetchNohaKhans,
-      color: const Color(0xFF4ECDC4),
+      color: const Color(0xFF00875A),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -307,7 +314,7 @@ class _AllNohaKhansScreenState extends State<AllNohaKhansScreen> {
                 children: [
                   Text(
                     'All Noha Khans',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.nunitoSans(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: const Color(0xFF333333),
@@ -320,12 +327,12 @@ class _AllNohaKhansScreenState extends State<AllNohaKhansScreen> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF4ECDC4),
+                      color: const Color(0xFF00875A),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       '${_filteredNohaKhans.length}',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.nunitoSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: Colors.white,
@@ -336,7 +343,13 @@ class _AllNohaKhansScreenState extends State<AllNohaKhansScreen> {
               ),
             ),
             Expanded(
-              child: ListView.builder(
+              child: GridView.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 0.75,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                ),
                 itemCount: _filteredNohaKhans.length,
                 itemBuilder: (context, index) {
                   final nohaKhan = _filteredNohaKhans[index];
@@ -351,47 +364,46 @@ class _AllNohaKhansScreenState extends State<AllNohaKhansScreen> {
   }
 
   Widget _buildNohaKhanCard(NohaKhanProfile nohaKhan) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            spreadRadius: 1,
-            offset: const Offset(0, 2),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) =>
+                    ViewProfileScreen(profileId: nohaKhan.id.toString()),
           ),
-        ],
-      ),
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder:
-                  (context) =>
-                      ViewProfileScreen(profileId: nohaKhan.id.toString()),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              spreadRadius: 1,
+              offset: const Offset(0, 2),
             ),
-          );
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              // Profile image
-              Container(
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Profile image with gradient border
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Container(
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
-                    colors: [const Color(0xFF4ECDC4), const Color(0xFF45B7AF)],
+                    colors: [const Color(0xFF00875A), const Color(0xFF4ECDC4)],
                   ),
                 ),
                 child: CircleAvatar(
-                  radius: 40,
+                  radius: 55,
                   backgroundColor: Colors.white,
                   child: ClipOval(
                     child: CachedNetworkImage(
@@ -400,82 +412,72 @@ class _AllNohaKhansScreenState extends State<AllNohaKhansScreen> {
                           (context, url) => const Center(
                             child: CircularProgressIndicator(
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                Color(0xFF4ECDC4),
+                                Color(0xFF00875A),
                               ),
                               strokeWidth: 2,
                             ),
                           ),
                       errorWidget:
                           (context, url, error) => const Icon(
-                            Icons.person,
-                            size: 40,
+                            IconlyLight.profile,
+                            size: 60,
                             color: Color(0xFFCCCCCC),
                           ),
-                      width: 80,
-                      height: 80,
+                      width: 110,
+                      height: 110,
                       fit: BoxFit.cover,
                     ),
                   ),
                 ),
               ),
-
-              const SizedBox(width: 16),
-
-              // Content
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      nohaKhan.name,
-                      style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF333333),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF4ECDC4).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        'Noha Khan',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFF4ECDC4),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        _buildStatistic(
-                          Icons.visibility,
-                          nohaKhan.totalViews.toString(),
-                        ),
-                        const SizedBox(width: 16),
-                        _buildStatistic(
-                          Icons.play_circle,
-                          nohaKhan.totalPlays.toString(),
-                        ),
-                      ],
-                    ),
-                  ],
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                nohaKhan.name,
+                style: GoogleFonts.nunitoSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF333333),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF00875A).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'Noha Khan',
+                style: GoogleFonts.nunitoSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF00875A),
                 ),
               ),
-
-              const Icon(Icons.chevron_right, color: Color(0xFF4ECDC4)),
-            ],
-          ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildStatistic(
+                  Icons.visibility,
+                  nohaKhan.totalViews.toString(),
+                ),
+                const SizedBox(width: 16),
+                _buildStatistic(
+                  Icons.play_circle,
+                  nohaKhan.totalPlays.toString(),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

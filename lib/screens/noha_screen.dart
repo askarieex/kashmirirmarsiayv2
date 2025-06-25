@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:iconly/iconly.dart';
 import 'noha_audio_screen.dart';
 import 'main_navigation_screen.dart';
 
 class NohaScreen extends StatefulWidget {
-  const NohaScreen({Key? key}) : super(key: key);
+  const NohaScreen({super.key});
 
   @override
   State<NohaScreen> createState() => _NohaScreenState();
@@ -12,15 +14,17 @@ class NohaScreen extends StatefulWidget {
 
 class _NohaScreenState extends State<NohaScreen>
     with SingleTickerProviderStateMixin {
-  // Updated color palette to match the image
+  // Updated color palette to match marsiya screen style
   static const Color primaryColor = Color(0xFF008C5F);
-  static const Color backgroundColor = Color(0xFFBCE4E1);
+  static const Color backgroundColor = Color(
+    0xFFF5F5F7,
+  ); // Light gray background
   static const Color cardBackground = Color(0xFFF5F5F5);
   static const Color textDark = Color(0xFF212121);
   static const Color textMedium = Color(0xFF757575);
 
-  // Icons
-  static const IconData audioIcon = Icons.headphones_rounded;
+  // Icons updated with Iconly
+  static const IconData audioIcon = IconlyLight.voice;
 
   late AnimationController _animationController;
   final List<Animation<double>> _animations = [];
@@ -32,6 +36,7 @@ class _NohaScreenState extends State<NohaScreen>
       'titleUr': 'مع وزن',
       'icon': audioIcon,
       'screen': const NohaAudioScreen(),
+      'color': const Color(0xFF008C5F), // Green
     },
   ];
 
@@ -90,20 +95,25 @@ class _NohaScreenState extends State<NohaScreen>
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        gradient: LinearGradient(
+                          colors: [Colors.white, const Color(0xFFF8F9FF)],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
+                            color: primaryColor.withOpacity(0.15),
                             blurRadius: 4,
+                            spreadRadius: 0,
                             offset: const Offset(0, 2),
                           ),
                         ],
                       ),
                       child: IconButton(
                         icon: const Icon(
-                          Icons.chevron_left,
-                          color: Colors.black,
+                          IconlyLight.arrow_left,
+                          color: primaryColor,
                           size: 24,
                         ),
                         padding: EdgeInsets.zero,
@@ -133,14 +143,15 @@ class _NohaScreenState extends State<NohaScreen>
                         },
                       ),
                     ),
-                    const Expanded(
+                    Expanded(
                       child: Center(
                         child: Text(
                           'Noha Collection',
-                          style: TextStyle(
+                          style: GoogleFonts.nunitoSans(
                             color: textDark,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
@@ -161,23 +172,36 @@ class _NohaScreenState extends State<NohaScreen>
                   children: [
                     Container(
                       padding: const EdgeInsets.all(15),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [primaryColor, primaryColor.withOpacity(0.8)],
+                        ),
                         shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: primaryColor.withOpacity(0.25),
+                            blurRadius: 10,
+                            spreadRadius: 0,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      child: const Icon(
-                        Icons.headphones,
-                        color: primaryColor,
+                      child: Icon(
+                        IconlyBold.voice,
+                        color: Colors.white,
                         size: 32,
                       ),
                     ),
                     const SizedBox(height: 15),
-                    const Text(
+                    Text(
                       'Explore our collection of soul-stirring Noha recitations',
-                      style: TextStyle(
-                        color: textDark,
+                      style: GoogleFonts.nunitoSans(
+                        color: primaryColor,
                         fontSize: 16,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -199,12 +223,13 @@ class _NohaScreenState extends State<NohaScreen>
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Text(
+                    Text(
                       'Browse Categories',
-                      style: TextStyle(
+                      style: GoogleFonts.nunitoSans(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
                         color: textDark,
+                        letterSpacing: 0.3,
                       ),
                     ),
                   ],
@@ -217,8 +242,20 @@ class _NohaScreenState extends State<NohaScreen>
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Colors.white, const Color(0xFFF8F9FF)],
+                      ),
                       borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          spreadRadius: 0,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(10),
@@ -229,7 +266,7 @@ class _NohaScreenState extends State<NohaScreen>
                           crossAxisCount: 2,
                           crossAxisSpacing: 10,
                           mainAxisSpacing: 10,
-                          childAspectRatio: 1.0,
+                          childAspectRatio: 1.15, // Match the marsiya screen
                         ),
                         itemBuilder: (context, index) {
                           final section = sections[index];
@@ -240,6 +277,7 @@ class _NohaScreenState extends State<NohaScreen>
                             section['icon'] as IconData,
                             section['screen'] as Widget,
                             _animations[index],
+                            section['color'] as Color,
                           );
                         },
                       ),
@@ -248,7 +286,7 @@ class _NohaScreenState extends State<NohaScreen>
                 ),
               ),
               // Bottom padding to ensure content is visible above tab bar if needed
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
             ],
           ),
         ],
@@ -264,6 +302,7 @@ class _NohaScreenState extends State<NohaScreen>
     IconData icon,
     Widget screen,
     Animation<double> animation,
+    Color cardColor,
   ) {
     return AnimatedBuilder(
       animation: animation,
@@ -272,7 +311,7 @@ class _NohaScreenState extends State<NohaScreen>
           offset: Offset(0, 20 * (1 - animation.value)),
           child: Opacity(
             opacity: animation.value.clamp(0.0, 1.0),
-            child: InkWell(
+            child: GestureDetector(
               onTap: () {
                 HapticFeedback.lightImpact();
                 Navigator.of(context).push(
@@ -284,46 +323,103 @@ class _NohaScreenState extends State<NohaScreen>
               },
               child: Container(
                 decoration: BoxDecoration(
-                  color: backgroundColor.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      cardColor,
+                      cardColor.withOpacity(0.8),
+                      cardColor.withOpacity(0.6),
+                    ],
+                    stops: const [0.0, 0.6, 1.0],
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: cardColor.withOpacity(0.3),
+                      blurRadius: 10,
+                      spreadRadius: 0,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: Stack(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
+                      // Background patterns
+                      Positioned(
+                        right: -20,
+                        bottom: -20,
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withOpacity(0.1),
+                          ),
                         ),
-                        child: Icon(icon, size: 28, color: primaryColor),
                       ),
-                      const SizedBox(height: 10),
-                      Text(
-                        titleEn,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: textDark,
+                      Positioned(
+                        left: -15,
+                        top: -15,
+                        child: Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withOpacity(0.1),
+                          ),
                         ),
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        titleUr,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: textMedium,
+                      // Content
+                      Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 5,
+                                    spreadRadius: 0,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(icon, size: 22, color: Colors.white),
+                            ),
+                            const Spacer(),
+                            Text(
+                              titleEn,
+                              style: GoogleFonts.nunitoSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                letterSpacing: 0.2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              titleUr,
+                              style: GoogleFonts.notoNastaliqUrdu(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white.withOpacity(0.85),
+                              ),
+                              textDirection: TextDirection.rtl,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
-                        textAlign: TextAlign.center,
-                        textDirection: TextDirection.rtl,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),

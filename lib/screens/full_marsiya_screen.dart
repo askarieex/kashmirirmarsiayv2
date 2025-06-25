@@ -7,11 +7,14 @@ import 'package:share_plus/share_plus.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:iconly/iconly.dart';
+import 'dart:ui' as ui;
 
 class FullMarsiyaScreen extends StatefulWidget {
   const FullMarsiyaScreen({super.key});
   static const Color accentTeal = Color(0xFF008F41);
-  static const Color bgColor = Color(0xFFF5F7FA);
+  static const Color bgColor = Color(0xFFF2F7F7);
   @override
   State<FullMarsiyaScreen> createState() => _FullMarsiyaScreenState();
 }
@@ -180,16 +183,23 @@ class _FullMarsiyaScreenState extends State<FullMarsiyaScreen>
         controller: _searchController,
         decoration: InputDecoration(
           hintText: 'Search by title or author...',
+          hintStyle: GoogleFonts.nunitoSans(
+            color: Colors.grey.shade400,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
           prefixIcon: const Icon(
-            Icons.search,
+            IconlyLight.search,
             color: FullMarsiyaScreen.accentTeal,
+            size: 22,
           ),
           suffixIcon:
               _searchQuery.isNotEmpty
                   ? IconButton(
                     icon: const Icon(
-                      Icons.clear,
+                      IconlyBold.close_square,
                       color: FullMarsiyaScreen.accentTeal,
+                      size: 20,
                     ),
                     onPressed: () {
                       _searchController.clear();
@@ -206,20 +216,25 @@ class _FullMarsiyaScreenState extends State<FullMarsiyaScreen>
             horizontal: 20,
           ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(20),
             borderSide: BorderSide.none,
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(20),
             borderSide: BorderSide(color: Colors.grey.shade200),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(20),
             borderSide: const BorderSide(
               color: FullMarsiyaScreen.accentTeal,
               width: 1.5,
             ),
           ),
+        ),
+        style: GoogleFonts.nunitoSans(
+          color: Colors.grey.shade800,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );
@@ -328,144 +343,196 @@ class _FullMarsiyaScreenState extends State<FullMarsiyaScreen>
     }
 
     String formattedDate = formatDate(item['uploaded_date'] ?? "");
+    String views = item['views']?.toString() ?? "0";
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Color(0xFF9747FF).withOpacity(0.12),
+            blurRadius: 15,
+            spreadRadius: 1,
+            offset: const Offset(0, 6),
+          ),
+          BoxShadow(
+            color: Colors.white.withOpacity(0.7),
+            blurRadius: 8,
+            spreadRadius: 1,
+            offset: const Offset(-3, -3),
           ),
         ],
+        border: Border.all(color: Color(0xFF9747FF).withOpacity(0.05)),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: () => _onItemTap(item),
-            splashColor: FullMarsiyaScreen.accentTeal.withOpacity(0.1),
-            highlightColor: FullMarsiyaScreen.accentTeal.withOpacity(0.05),
+            splashColor: Color(0xFF9747FF).withOpacity(0.1),
+            highlightColor: Color(0xFF9747FF).withOpacity(0.05),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(14),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // PDF Icon with animated hover effect
+                  // PDF Icon with rich gradient
                   Hero(
                     tag: 'pdf_icon_${item['id'] ?? DateTime.now().toString()}',
                     child: Container(
-                      width: 60,
-                      height: 60,
+                      width: 50,
+                      height: 50,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            FullMarsiyaScreen.accentTeal,
-                            const Color(0xFF006D2E),
+                            Color(0xFF9747FF),
+                            Color(0xFF7E42D9),
+                            Color(0xFF6B38C1),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: FullMarsiyaScreen.accentTeal.withOpacity(
-                              0.3,
-                            ),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
+                            color: Color(0xFF9747FF).withOpacity(0.25),
+                            blurRadius: 12,
+                            spreadRadius: 0,
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
                       child: const Center(
                         child: Icon(
-                          Icons.picture_as_pdf,
+                          IconlyLight.document,
                           color: Colors.white,
-                          size: 30,
+                          size: 20,
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 16),
-                  // Content section
+
+                  // Content section with improved typography
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Title with improved typography
                         Text(
                           displayTitle,
-                          style: const TextStyle(
+                          style: GoogleFonts.notoNastaliqUrdu(
                             fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            color: Color(0xFF2D3748),
-                            height: 1.3,
+                            fontSize: 17,
+                            height: 1.8,
+                            color: const Color(0xFF2D3748),
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
+                          textDirection: ui.TextDirection.rtl,
+                          textAlign: TextAlign.right,
                         ),
-                        const SizedBox(height: 8),
-                        // Author section with icon
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.person,
-                              size: 16,
-                              color: FullMarsiyaScreen.accentTeal,
+                        const SizedBox(height: 10),
+
+                        // Author badge with purple theme
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Color(0xFF9747FF).withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Color(0xFF9747FF).withOpacity(0.1),
+                              width: 1.0,
                             ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                displayAuthor != "null"
-                                    ? displayAuthor
-                                    : "Unknown",
-                                style: TextStyle(
-                                  color: Colors.grey.shade700,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                IconlyLight.profile,
+                                size: 12,
+                                color: Color(0xFF9747FF),
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  displayAuthor != "null"
+                                      ? displayAuthor
+                                      : "Unknown",
+                                  style: GoogleFonts.poppins(
+                                    color: Color(0xFF9747FF).withOpacity(0.9),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 4),
-                        // Date section with icon
-                        Row(
+
+                        // Info row with colorful chips
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
                           children: [
-                            const Icon(
-                              Icons.calendar_today,
-                              size: 16,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
+                            _buildInfoChip(
+                              IconlyLight.calendar,
                               formattedDate,
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 13,
-                              ),
+                              Colors.orange.shade400,
+                            ),
+                            _buildInfoChip(
+                              IconlyLight.show,
+                              "$views views",
+                              Colors.blue.shade400,
                             ),
                           ],
                         ),
                       ],
                     ),
                   ),
-                  // Arrow icon
+
+                  // Read/View button with beautiful styling
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(12),
+                      gradient: LinearGradient(
+                        colors: [
+                          Color.fromARGB(255, 241, 238, 245).withOpacity(0.7),
+                          Color.fromARGB(255, 248, 245, 253),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color.fromARGB(
+                            255,
+                            250,
+                            250,
+                            250,
+                          ).withOpacity(0.2),
+                          blurRadius: 8,
+                          spreadRadius: 0,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
                     ),
-                    child: const Icon(
-                      Icons.arrow_forward_ios,
-                      color: FullMarsiyaScreen.accentTeal,
-                      size: 18,
+                    child: const Center(
+                      child: Icon(
+                        IconlyLight.arrow_right_circle,
+                        color: Color.fromARGB(255, 146, 80, 232),
+                        size: 25,
+                      ),
                     ),
                   ),
                 ],
@@ -477,6 +544,32 @@ class _FullMarsiyaScreenState extends State<FullMarsiyaScreen>
     );
   }
 
+  Widget _buildInfoChip(IconData icon, String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: GoogleFonts.nunitoSans(
+              color: color.withOpacity(0.8),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildErrorView() {
     return Center(
       child: Padding(
@@ -484,11 +577,11 @@ class _FullMarsiyaScreenState extends State<FullMarsiyaScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, color: Colors.red.shade400, size: 80),
+            Icon(IconlyBold.danger, color: Colors.red.shade400, size: 80),
             const SizedBox(height: 16),
             Text(
               "Oops! Something went wrong",
-              style: TextStyle(
+              style: GoogleFonts.nunitoSans(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.grey.shade800,
@@ -497,14 +590,20 @@ class _FullMarsiyaScreenState extends State<FullMarsiyaScreen>
             const SizedBox(height: 12),
             Text(
               _errorMessage,
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+              style: GoogleFonts.nunitoSans(
+                color: Colors.grey.shade600,
+                fontSize: 16,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: fetchPdfList,
-              icon: const Icon(Icons.refresh),
-              label: const Text("Try Again"),
+              icon: const Icon(IconlyBold.arrow_right_circle),
+              label: Text(
+                "Try Again",
+                style: GoogleFonts.nunitoSans(fontWeight: FontWeight.w600),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: FullMarsiyaScreen.accentTeal,
                 foregroundColor: Colors.white,
@@ -513,7 +612,7 @@ class _FullMarsiyaScreenState extends State<FullMarsiyaScreen>
                   vertical: 12,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
+                  borderRadius: BorderRadius.circular(20),
                 ),
               ),
             ),
@@ -618,25 +717,27 @@ class _FullMarsiyaScreenState extends State<FullMarsiyaScreen>
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
-        title: const FittedBox(
+        title: FittedBox(
           fit: BoxFit.scaleDown,
           child: Row(
             children: [
               Text(
                 'مکمل مرثیہ',
-                style: TextStyle(
+                style: GoogleFonts.notoNastaliqUrdu(
                   color: FullMarsiyaScreen.accentTeal,
                   fontWeight: FontWeight.bold,
-                  fontSize: 24,
+                  fontSize: 15,
+                  height: 1.9,
                 ),
+                textDirection: ui.TextDirection.rtl,
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text(
                 '- Full Marsiya PDF',
-                style: TextStyle(
-                  color: Color(0xFF2D3748),
+                style: GoogleFonts.nunitoSans(
+                  color: const Color(0xFF2D3748),
                   fontWeight: FontWeight.w500,
-                  fontSize: 18,
+                  fontSize: 14,
                 ),
               ),
             ],
@@ -644,9 +745,9 @@ class _FullMarsiyaScreenState extends State<FullMarsiyaScreen>
         ),
         leading: IconButton(
           icon: const Icon(
-            Icons.arrow_back,
+            IconlyLight.arrow_left,
             color: FullMarsiyaScreen.accentTeal,
-            size: 28,
+            size: 26,
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
@@ -656,11 +757,32 @@ class _FullMarsiyaScreenState extends State<FullMarsiyaScreen>
           indicatorWeight: 3,
           labelColor: FullMarsiyaScreen.accentTeal,
           unselectedLabelColor: Colors.grey.shade600,
-          labelStyle: const TextStyle(
+          labelStyle: GoogleFonts.nunitoSans(
             fontWeight: FontWeight.bold,
-            fontSize: 16,
+            fontSize: 14,
           ),
-          tabs: const [Tab(text: 'All PDFs'), Tab(text: 'Recently Uploaded')],
+          tabs: [
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(IconlyLight.document, size: 16),
+                  const SizedBox(width: 4),
+                  Text('All PDFs', style: const TextStyle(height: 1)),
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(IconlyLight.time_circle, size: 16),
+                  const SizedBox(width: 4),
+                  Text('Recently Uploaded', style: const TextStyle(height: 1)),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
       body: SafeArea(
@@ -757,8 +879,7 @@ class PdfViewerScreen extends StatefulWidget {
   final String pdfUrl;
   final String title;
 
-  const PdfViewerScreen({Key? key, required this.pdfUrl, required this.title})
-    : super(key: key);
+  const PdfViewerScreen({super.key, required this.pdfUrl, required this.title});
 
   @override
   State<PdfViewerScreen> createState() => _PdfViewerScreenState();
@@ -826,18 +947,21 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
       appBar: AppBar(
         title: Text(
           widget.title,
-          style: const TextStyle(
+          style: GoogleFonts.notoNastaliqUrdu(
             color: Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: 16,
+            height: 1.9,
           ),
           overflow: TextOverflow.ellipsis,
+          textDirection: ui.TextDirection.rtl,
         ),
         backgroundColor: FullMarsiyaScreen.accentTeal,
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.share),
+            icon: const Icon(IconlyBold.send),
             onPressed: _sharePdf,
             tooltip: 'Share',
           ),
@@ -846,7 +970,11 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
       body: Stack(
         children: [
           if (_isLoading)
-            const Center(child: CircularProgressIndicator())
+            const Center(
+              child: CircularProgressIndicator(
+                color: FullMarsiyaScreen.accentTeal,
+              ),
+            )
           else if (_localPath != null)
             PDFView(
               filePath: _localPath!,
@@ -872,7 +1000,16 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
               },
             )
           else
-            const Center(child: Text('Failed to load PDF')),
+            Center(
+              child: Text(
+                'Failed to load PDF',
+                style: GoogleFonts.nunitoSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade800,
+                ),
+              ),
+            ),
           if (_isInitialized)
             Positioned(
               bottom: 20,
@@ -890,9 +1027,10 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                   ),
                   child: Text(
                     'Page $_currentPage of $_totalPages',
-                    style: const TextStyle(
+                    style: GoogleFonts.nunitoSans(
                       color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
                     ),
                   ),
                 ),
@@ -914,7 +1052,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                     backgroundColor: FullMarsiyaScreen.accentTeal,
                     foregroundColor: Colors.white,
                     heroTag: 'prevPage',
-                    child: const Icon(Icons.arrow_upward),
+                    child: const Icon(IconlyLight.arrow_up_2),
                   ),
                   const SizedBox(height: 8),
                   FloatingActionButton.small(
@@ -926,7 +1064,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                     backgroundColor: FullMarsiyaScreen.accentTeal,
                     foregroundColor: Colors.white,
                     heroTag: 'nextPage',
-                    child: const Icon(Icons.arrow_downward),
+                    child: const Icon(IconlyLight.arrow_down_2),
                   ),
                   const SizedBox(height: 8),
                   FloatingActionButton(
@@ -937,7 +1075,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                     backgroundColor: FullMarsiyaScreen.accentTeal,
                     foregroundColor: Colors.white,
                     heroTag: 'zoom',
-                    child: const Icon(Icons.zoom_in),
+                    child: const Icon(IconlyBold.show),
                   ),
                 ],
               )

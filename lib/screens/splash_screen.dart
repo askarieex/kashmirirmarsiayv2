@@ -34,16 +34,19 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     // Scale animation with bounce effect
-    _scaleAnim = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween<double>(begin: 0.6, end: 1.1),
-        weight: 60.0,
-      ),
-      TweenSequenceItem(
-        tween: Tween<double>(begin: 1.1, end: 1.0),
-        weight: 40.0,
-      ),
-    ]).animate(
+    _scaleAnim = TweenSequenceItem(
+      weight: 100.0,
+      tween: TweenSequence<double>([
+        TweenSequenceItem(
+          tween: Tween<double>(begin: 0.6, end: 1.1),
+          weight: 60.0,
+        ),
+        TweenSequenceItem(
+          tween: Tween<double>(begin: 1.1, end: 1.0),
+          weight: 40.0,
+        ),
+      ]),
+    ).tween.animate(
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0.2, 0.8, curve: Curves.easeOut),
@@ -71,12 +74,28 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    // After 3 seconds, navigate to the MainNavigationScreen directly instead of GetStartedScreen
-    Timer(const Duration(milliseconds: 3000), () {
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/mainNav');
-      }
-    });
+    // Preload home screen data before transitioning
+    _preloadAndNavigate();
+  }
+
+  // Preload home screen data and then navigate
+  Future<void> _preloadAndNavigate() async {
+    // Wait for animations to start
+    await Future.delayed(const Duration(milliseconds: 1500));
+
+    // Preload any required assets or data here
+
+    // Make sure we finish the animation first
+    await Future.delayed(const Duration(milliseconds: 1500));
+
+    if (mounted) {
+      // Use a fade transition when navigating
+      Navigator.pushReplacementNamed(
+        context,
+        '/mainNav',
+        arguments: {'preloaded': true},
+      );
+    }
   }
 
   @override

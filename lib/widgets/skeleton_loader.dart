@@ -2,29 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
 class SkeletonLoader extends StatelessWidget {
-  const SkeletonLoader({Key? key}) : super(key: key);
+  const SkeletonLoader({super.key});
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      physics: const NeverScrollableScrollPhysics(),
+      physics: const AlwaysScrollableScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           _buildHeaderSkeleton(context),
           // Prayer times skeleton now part of the scrollable content
           _buildPrayerTimesSkeleton(context),
           const SizedBox(height: 10),
           _buildQuickAccessSkeleton(),
-          Padding(
-            padding: const EdgeInsets.only(top: 8, bottom: 12),
-            child: _buildAdBannerSkeleton(),
-          ),
           _buildTopZakirsSkeleton(),
           const SizedBox(height: 20),
           _buildFeaturedContentSkeleton(),
           const SizedBox(height: 20),
           _buildExploreSkeleton(),
+          const SizedBox(height: 50),
         ],
       ),
     );
@@ -35,7 +33,7 @@ class SkeletonLoader extends StatelessWidget {
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Container(
-      height: screenHeight * 0.15,
+      height: screenHeight * 0.14,
       decoration: BoxDecoration(
         color: Colors.green.shade800,
         borderRadius: const BorderRadius.only(
@@ -46,7 +44,7 @@ class SkeletonLoader extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SizedBox(height: 45),
+          const SizedBox(height: 40),
           // App bar skeleton
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -59,7 +57,7 @@ class SkeletonLoader extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           // Calendar skeleton
           ConstrainedBox(
             constraints: BoxConstraints(
@@ -150,7 +148,7 @@ class SkeletonLoader extends StatelessWidget {
     return Center(
       child: Container(
         width: screenWidth * 0.94,
-        margin: EdgeInsets.only(top: 10),
+        margin: const EdgeInsets.only(top: 5),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -188,15 +186,20 @@ class SkeletonLoader extends StatelessWidget {
             ),
             // Prayer times content
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  for (int i = 0; i < 5; i++) ...[
-                    if (i > 0) _buildVerticalDividerSkeleton(),
-                    _buildPrayerTimeBlockSkeleton(),
+              padding: const EdgeInsets.symmetric(
+                vertical: 2,
+              ), // Reduced padding
+              child: SizedBox(
+                height: 48, // Fixed height to prevent overflow
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    for (int i = 0; i < 5; i++) ...[
+                      if (i > 0) _buildVerticalDividerSkeleton(),
+                      _buildPrayerTimeBlockSkeleton(),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ],
@@ -213,38 +216,39 @@ class SkeletonLoader extends StatelessWidget {
           baseColor: Colors.grey[300]!,
           highlightColor: Colors.grey[100]!,
           child: Container(
-            width: 28,
-            height: 28,
+            width: 24,
+            height: 24,
             decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
             ),
           ),
         ),
-        const SizedBox(height: 4),
-        Shimmer.fromColors(
-          baseColor: Colors.grey[300]!,
-          highlightColor: Colors.grey[100]!,
-          child: Container(width: 24, height: 12, color: Colors.white),
-        ),
         const SizedBox(height: 2),
         Shimmer.fromColors(
           baseColor: Colors.grey[300]!,
           highlightColor: Colors.grey[100]!,
-          child: Container(width: 28, height: 10, color: Colors.white),
+          child: Container(width: 24, height: 10, color: Colors.white),
         ),
+        const SizedBox(height: 1),
+        Shimmer.fromColors(
+          baseColor: Colors.grey[300]!,
+          highlightColor: Colors.grey[100]!,
+          child: Container(width: 28, height: 8, color: Colors.white),
+        ),
+        const SizedBox(height: 1), // Add small padding at the bottom
       ],
     );
   }
 
   Widget _buildVerticalDividerSkeleton() {
-    return Container(width: 1, height: 30, color: Colors.grey.shade200);
+    return Container(width: 1, height: 24, color: Colors.grey.shade200);
   }
 
   Widget _buildQuickAccessSkeleton() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      height: 82,
+      height: 70,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         gradient: LinearGradient(
@@ -262,12 +266,12 @@ class SkeletonLoader extends StatelessWidget {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.all(6.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.only(left: 4.0, bottom: 6.0),
+              padding: const EdgeInsets.only(left: 4.0, bottom: 4.0),
               child: Row(
                 children: [
                   Container(
@@ -315,44 +319,6 @@ class SkeletonLoader extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildAdBannerSkeleton() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                height: 15,
-                width: 4,
-                color: Colors.orange.shade700,
-                margin: const EdgeInsets.only(right: 8),
-              ),
-              Shimmer.fromColors(
-                baseColor: Colors.grey[300]!,
-                highlightColor: Colors.grey[100]!,
-                child: Container(width: 80, height: 12, color: Colors.white),
-              ),
-              const Spacer(),
-              Shimmer.fromColors(
-                baseColor: Colors.grey[300]!,
-                highlightColor: Colors.grey[100]!,
-                child: Container(width: 30, height: 4, color: Colors.white),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          _buildShimmerBox(
-            double.infinity,
-            140,
-            borderRadius: 16,
-          ), // Reduced from 150
-        ],
       ),
     );
   }
@@ -436,13 +402,9 @@ class SkeletonLoader extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12), // Reduced from 16
-          _buildShimmerBox(
-            double.infinity,
-            170,
-            borderRadius: 24,
-          ), // Reduced from 180
-          const SizedBox(height: 10), // Reduced from 12
+          const SizedBox(height: 8),
+          _buildShimmerBox(double.infinity, 150, borderRadius: 24),
+          const SizedBox(height: 6),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(
@@ -485,16 +447,16 @@ class SkeletonLoader extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12), // Reduced from 16
+          const SizedBox(height: 8), // Further reduced
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             crossAxisCount: 3,
-            mainAxisSpacing: 10, // Reduced from 12
+            mainAxisSpacing: 8, // Further reduced
             crossAxisSpacing: 12,
-            childAspectRatio: 1.0, // Changed from 0.95
+            childAspectRatio: 1.05, // Slightly wider relative to height
             children: List.generate(
-              9,
+              6, // Reduced to just 2 rows instead of 3
               (index) => _buildShimmerBox(
                 double.infinity,
                 double.infinity,

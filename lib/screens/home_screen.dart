@@ -26,7 +26,6 @@ import 'about_us_screen.dart';
 import 'contact_us_screen.dart';
 import 'education_screen.dart';
 import 'favourites_screen.dart';
-import 'help_us_screen.dart';
 import 'community_screen.dart';
 import 'history_screen.dart';
 import '../widgets/quick_actions_bar.dart';
@@ -35,6 +34,12 @@ import '../widgets/skeleton_loader.dart'; // Add import for SkeletonLoader
 import 'all_profiles_screen.dart'; // Add this import
 import 'all_zakirs_screen.dart';
 import 'all_noha_khans_screen.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:iconly/iconly.dart'; // Add IconlyLight icons
+import 'package:shimmer/shimmer.dart';
+import 'package:lottie/lottie.dart';
+import 'full_marsiya_audio_play.dart';
+import 'full_noha_audio_play.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -60,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   final ScrollController _artistScrollController = ScrollController();
   Timer? _artistAutoScrollTimer;
-  int _currentArtistIndex = 0;
+  final int _currentArtistIndex = 0;
 
   String _fajr = '';
   String _sunrise = '';
@@ -75,6 +80,7 @@ class _HomeScreenState extends State<HomeScreen>
   bool _isLoadingAds = true;
   bool _isLoadingProfiles = true;
   bool _isAdDismissed = false;
+  bool _isRefreshing = false;
 
   // Updated poster and ad items
   final List<PosterItem> _posters = [];
@@ -97,6 +103,8 @@ class _HomeScreenState extends State<HomeScreen>
     {'label': 'Contact Us', 'icon': Icons.contact_mail},
   ];
 
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   @override
   void initState() {
     super.initState();
@@ -114,37 +122,51 @@ class _HomeScreenState extends State<HomeScreen>
       CurvedAnimation(parent: _animController, curve: Curves.easeOutQuint),
     );
 
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) _animController.forward();
-    });
+    // Initialize data before the widget is displayed
+    _preloadData();
+  }
 
-    _startAutoScroll();
-
+  // Preload data before the animation starts
+  Future<void> _preloadData() async {
     // Set initial loading state
     _isLoading = true;
     _isLoadingAds = true;
     _isLoadingProfiles = true;
 
-    // Delay data fetching to show skeleton loader
-    Future.delayed(const Duration(milliseconds: 1000), () {
-      if (mounted) {
-        _fetchPrayerTimes();
-        _fetchPosters();
-        _fetchPaidPromotions();
-        _fetchProfilesByCategory();
+    try {
+      // Start fetching data in parallel
+      await Future.wait([
+        _fetchPrayerTimes(),
+        _fetchPosters(),
+        _fetchPaidPromotions(),
+        _fetchProfilesByCategory(),
+      ]);
+    } catch (e) {
+      debugPrint('Error preloading data: $e');
+    }
 
-        // Try to fetch popup message with retries
-        _setupPopupMessageWithRetry();
-      }
-    });
+    // Only animate and start auto-scroll if still mounted
+    if (mounted) {
+      // Now that data is loaded, start animations
+      _animController.forward();
+      _startAutoScroll();
+
+      // Setup popup with retry
+      _setupPopupMessageWithRetry();
+
+      // Update the state to reflect loaded data
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   void _startAutoScroll() {
     _autoScrollTimer?.cancel();
     _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (_posters.isEmpty) return;
+      if (_posters.isEmpty || !mounted) return;
       _currentPage = (_currentPage + 1) % _posters.length;
-      if (mounted) {
+      if (_pageController.hasClients && mounted) {
         _pageController.animateToPage(
           _currentPage,
           duration: const Duration(milliseconds: 600),
@@ -156,13 +178,13 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _refreshData() async {
     setState(() {
+      _isRefreshing = true;
       _isLoading = true;
       _isLoadingAds = true;
       _isLoadingProfiles = true;
     });
 
     try {
-      // Add a small delay to ensure the skeleton loader is visible
       await Future.delayed(const Duration(milliseconds: 1000));
       await _fetchPrayerTimes();
       await _fetchPosters();
@@ -171,6 +193,7 @@ class _HomeScreenState extends State<HomeScreen>
     } finally {
       setState(() {
         _isLoading = false;
+        _isRefreshing = false;
       });
     }
     return;
@@ -368,185 +391,156 @@ class _HomeScreenState extends State<HomeScreen>
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
 
+    // Set the status bar to transparent with light icons
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light, // for Android
+        statusBarBrightness: Brightness.dark, // for iOS
+      ),
+    );
+
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: backgroundColor,
       drawer: _buildBeautifulDrawer(),
-      body: AnimatedBuilder(
-        animation: _animController,
-        builder: (context, child) {
-          return FadeTransition(
-            opacity: _fadeAnimation,
-            child: ScaleTransition(
-              scale: _scaleAnimation,
-              child: RefreshIndicator(
-                color: primaryColor,
-                backgroundColor: Colors.white,
-                onRefresh: _refreshData,
-                child:
-                    _isLoading
-                        ? const SkeletonLoader()
-                        : CustomScrollView(
-                          physics: const BouncingScrollPhysics(),
-                          slivers: [
-                            // Top padding to create space
-                            SliverToBoxAdapter(child: SizedBox(height: 15)),
-
-                            // Header Section with combined prayer times and calendar
-                            SliverToBoxAdapter(
-                              child: _buildHeaderSection(
-                                screenWidth,
-                                screenHeight,
-                              ),
-                            ),
-
-                            // Quick Actions - with enhanced UI
-                            SliverToBoxAdapter(
-                              child: AnimationConfiguration.staggeredList(
-                                position: 1,
-                                duration: const Duration(milliseconds: 700),
-                                child: SlideAnimation(
-                                  verticalOffset: 30,
-                                  child: FadeInAnimation(
-                                    child: _buildQuickAccessSection(),
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            // Sponsored Ad Banner
-                            SliverToBoxAdapter(
-                              child: AnimationConfiguration.staggeredList(
-                                position: 2,
-                                duration: const Duration(milliseconds: 800),
-                                child: SlideAnimation(
-                                  verticalOffset: 40,
-                                  child: FadeInAnimation(
-                                    child:
-                                        !_isAdDismissed
-                                            ? Padding(
-                                              padding: const EdgeInsets.only(
-                                                bottom: 20,
-                                              ),
-                                              child:
-                                                  _isLoadingAds
-                                                      ? Center(
-                                                        child: SizedBox(
-                                                          height: 140,
-                                                          child: Center(
-                                                            child: CircularProgressIndicator(
-                                                              valueColor:
-                                                                  AlwaysStoppedAnimation<
-                                                                    Color
-                                                                  >(
-                                                                    primaryColor,
-                                                                  ),
-                                                              strokeWidth: 2,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      )
-                                                      : Stack(
-                                                        children: [
-                                                          SponsoredAdBanner(
-                                                            adItems: _adItems,
-                                                            height: 140,
-                                                            margin:
-                                                                const EdgeInsets.symmetric(
-                                                                  horizontal:
-                                                                      16,
-                                                                ),
-                                                          ),
-                                                          Positioned(
-                                                            top: 8,
-                                                            right: 24,
-                                                            child: GestureDetector(
-                                                              onTap: () {
-                                                                setState(() {
-                                                                  _isAdDismissed =
-                                                                      true;
-                                                                });
-                                                              },
-                                                              child: Container(
-                                                                padding:
-                                                                    const EdgeInsets.all(
-                                                                      4,
-                                                                    ),
-                                                                decoration: BoxDecoration(
-                                                                  color: Colors
-                                                                      .white
-                                                                      .withOpacity(
-                                                                        0.8,
-                                                                      ),
-                                                                  shape:
-                                                                      BoxShape
-                                                                          .circle,
-                                                                ),
-                                                                child: Icon(
-                                                                  Icons.close,
-                                                                  color:
-                                                                      Colors
-                                                                          .grey
-                                                                          .shade700,
-                                                                  size: 16,
-                                                                ),
-                                                              ),
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                            )
-                                            : const SizedBox.shrink(),
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            // Top Zakirs section with adjusted spacing
-                            SliverToBoxAdapter(
-                              child: AnimationConfiguration.staggeredList(
-                                position: 3,
-                                duration: const Duration(milliseconds: 900),
-                                child: SlideAnimation(
-                                  verticalOffset: 50,
-                                  child: FadeInAnimation(
-                                    child: _buildArtistsSection(),
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            // Content section
-                            SliverToBoxAdapter(
-                              child: AnimationConfiguration.staggeredList(
-                                position: 4,
-                                duration: const Duration(milliseconds: 1000),
-                                child: SlideAnimation(
-                                  verticalOffset: 60,
-                                  child: FadeInAnimation(
-                                    child: _buildContentSection(screenWidth),
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            // Footer section
-                            SliverToBoxAdapter(
-                              child: AnimationConfiguration.staggeredList(
-                                position: 5,
-                                duration: const Duration(milliseconds: 1100),
-                                child: SlideAnimation(
-                                  verticalOffset: 70,
-                                  child: FadeInAnimation(child: _buildFooter()),
-                                ),
-                              ),
-                            ),
-                          ],
+      bottomNavigationBar: _buildBottomNavigationBar(),
+      body:
+          _isRefreshing
+              ? Container(
+                color: Colors.white, // Fully opaque
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 16,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 12,
+                          spreadRadius: 2,
                         ),
+                      ],
+                    ),
+                    child: Text(
+                      '–– Refreshing… ––',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+              : Stack(
+                children: [
+                  AnimatedBuilder(
+                    animation: _animController,
+                    builder: (context, child) {
+                      return FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: ScaleTransition(
+                          scale: _scaleAnimation,
+                          child: RefreshIndicator(
+                            color: primaryColor,
+                            backgroundColor: Colors.white,
+                            onRefresh: _refreshData,
+                            child:
+                                _isLoading
+                                    ? const SkeletonLoader()
+                                    : CustomScrollView(
+                                      physics: const BouncingScrollPhysics(),
+                                      slivers: [
+                                        // Header Section with combined prayer times and calendar
+                                        SliverToBoxAdapter(
+                                          child: _buildCustomHeader(),
+                                        ),
+
+                                        // Quick Actions - with enhanced UI
+                                        SliverToBoxAdapter(
+                                          child: AnimationConfiguration.staggeredList(
+                                            position: 1,
+                                            duration: const Duration(
+                                              milliseconds: 700,
+                                            ),
+                                            child: SlideAnimation(
+                                              verticalOffset: 30,
+                                              child: FadeInAnimation(
+                                                child:
+                                                    _buildQuickAccessSection(),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+
+                                        // Top Zakirs section with adjusted spacing
+                                        SliverToBoxAdapter(
+                                          child:
+                                              AnimationConfiguration.staggeredList(
+                                                position: 3,
+                                                duration: const Duration(
+                                                  milliseconds: 900,
+                                                ),
+                                                child: SlideAnimation(
+                                                  verticalOffset: 50,
+                                                  child: FadeInAnimation(
+                                                    child:
+                                                        _buildArtistsSection(),
+                                                  ),
+                                                ),
+                                              ),
+                                        ),
+
+                                        // Content section
+                                        SliverToBoxAdapter(
+                                          child:
+                                              AnimationConfiguration.staggeredList(
+                                                position: 4,
+                                                duration: const Duration(
+                                                  milliseconds: 1000,
+                                                ),
+                                                child: SlideAnimation(
+                                                  verticalOffset: 60,
+                                                  child: FadeInAnimation(
+                                                    child: _buildContentSection(
+                                                      screenWidth,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                        ),
+
+                                        // Footer section
+                                        SliverToBoxAdapter(
+                                          child:
+                                              AnimationConfiguration.staggeredList(
+                                                position: 5,
+                                                duration: const Duration(
+                                                  milliseconds: 1100,
+                                                ),
+                                                child: SlideAnimation(
+                                                  verticalOffset: 70,
+                                                  child: FadeInAnimation(
+                                                    child: _buildFooter(),
+                                                  ),
+                                                ),
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
-            ),
-          );
-        },
-      ),
     );
   }
 
@@ -595,7 +589,7 @@ class _HomeScreenState extends State<HomeScreen>
                   const SizedBox(height: 12),
                   Text(
                     'Kashmiri Marsiya',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.nunitoSans(
                       color: Colors.white,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -617,12 +611,12 @@ class _HomeScreenState extends State<HomeScreen>
                   padding: EdgeInsets.zero,
                   children: [
                     _buildDrawerItem(
-                      icon: Icons.home_outlined,
+                      icon: IconlyLight.home,
                       title: 'Home',
                       onTap: () => Navigator.pop(context),
                     ),
                     _buildDrawerItem(
-                      icon: Icons.music_note_outlined,
+                      icon: IconlyLight.document,
                       title: 'Marsiya',
                       onTap: () {
                         Navigator.pop(context);
@@ -635,7 +629,7 @@ class _HomeScreenState extends State<HomeScreen>
                       },
                     ),
                     _buildDrawerItem(
-                      icon: Icons.headphones_outlined,
+                      icon: IconlyLight.paper,
                       title: 'Noha',
                       onTap: () {
                         Navigator.pop(context);
@@ -648,73 +642,34 @@ class _HomeScreenState extends State<HomeScreen>
                       },
                     ),
                     _buildDrawerItem(
-                      icon: Icons.person_outline,
+                      icon: IconlyLight.user,
                       title: 'Zakirs',
                       onTap: () {
                         Navigator.pop(context);
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const ZakirScreen(),
+                            builder: (context) => const AllZakirsScreen(),
                           ),
                         );
                       },
                     ),
                     _buildDrawerItem(
-                      icon: Icons.mic_outlined,
+                      icon: IconlyLight.user_1,
                       title: 'Noha Khans',
                       onTap: () {
                         Navigator.pop(context);
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const NohaKhanScreen(),
+                            builder: (context) => const AllNohaKhansScreen(),
                           ),
                         );
                       },
                     ),
+
                     _buildDrawerItem(
-                      icon: Icons.event_outlined,
-                      title: 'Events',
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const EventsScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const Divider(),
-                    _buildDrawerItem(
-                      icon: Icons.school_outlined,
-                      title: 'Education',
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const EducationScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    _buildDrawerItem(
-                      icon: Icons.history_outlined,
-                      title: 'History',
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const HistoryScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    _buildDrawerItem(
-                      icon: Icons.info_outline,
+                      icon: IconlyLight.info_circle,
                       title: 'About Us',
                       onTap: () {
                         Navigator.pop(context);
@@ -727,7 +682,7 @@ class _HomeScreenState extends State<HomeScreen>
                       },
                     ),
                     _buildDrawerItem(
-                      icon: Icons.contact_support_outlined,
+                      icon: IconlyLight.message,
                       title: 'Contact Us',
                       onTap: () {
                         Navigator.pop(context);
@@ -735,19 +690,6 @@ class _HomeScreenState extends State<HomeScreen>
                           context,
                           MaterialPageRoute(
                             builder: (context) => const ContactUsScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    _buildDrawerItem(
-                      icon: Icons.help_outline,
-                      title: 'Help Us',
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const HelpUsScreen(),
                           ),
                         );
                       },
@@ -787,226 +729,430 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildHeaderSection(double screenWidth, double screenHeight) {
-    return Column(
-      children: [
-        SafeArea(
-          bottom: false,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+  // Add a custom bottom navigation bar using IconlyLight icons
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [const Color(0xFFF0F0F0), Colors.white],
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+        ),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF7B2CBF).withOpacity(0.15),
+            blurRadius: 15,
+            spreadRadius: 2,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildAnimatedNavItem(IconlyBold.home, IconlyLight.home, 'Home', 0),
+          _buildAnimatedNavItem(
+            IconlyBold.play,
+            IconlyLight.play,
+            'Marsiya',
+            1,
+          ),
+          _buildAnimatedNavItem(IconlyBold.voice, IconlyLight.voice, 'Noha', 2),
+          _buildAnimatedNavItem(
+            IconlyBold.search,
+            IconlyLight.search,
+            'Search',
+            3,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Current active tab index
+  int _activeTabIndex = 0;
+
+  // Animated navigation item
+  Widget _buildAnimatedNavItem(
+    IconData activeIcon,
+    IconData inactiveIcon,
+    String label,
+    int index,
+  ) {
+    final bool isActive = _activeTabIndex == index;
+
+    // Colors for animation
+    final Color activeColor = const Color(0xFF7B2CBF); // Purple
+    final Color inactiveColor = Colors.grey.shade400;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _activeTabIndex = index;
+        });
+
+        // Handle tab changes here
+        switch (index) {
+          case 1: // Marsiya
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const MarsiyaScreen()),
+            );
+            break;
+          case 2: // Noha
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const NohaScreen()),
+            );
+            break;
+          case 3: // Search
+            // Implement search functionality
+            break;
+        }
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+          padding:
+              isActive
+                  ? const EdgeInsets.symmetric(horizontal: 16, vertical: 8)
+                  : const EdgeInsets.all(0),
+          decoration: BoxDecoration(
+            color: isActive ? activeColor.withOpacity(0.1) : Colors.transparent,
+            borderRadius: BorderRadius.circular(30),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Animated icon with scaling effect
+              TweenAnimationBuilder(
+                tween: Tween<double>(
+                  begin: isActive ? 0.8 : 1.0,
+                  end: isActive ? 1.0 : 0.8,
                 ),
-              ],
+                curve: Curves.easeOutBack,
+                duration: const Duration(milliseconds: 400),
+                builder: (context, value, child) {
+                  return Transform.scale(
+                    scale: value,
+                    child: ShaderMask(
+                      shaderCallback: (bounds) {
+                        return LinearGradient(
+                          colors:
+                              isActive
+                                  ? [activeColor, const Color(0xFF9747FF)]
+                                  : [inactiveColor, inactiveColor],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ).createShader(bounds);
+                      },
+                      child: Icon(
+                        isActive ? activeIcon : inactiveIcon,
+                        color: Colors.white, // Color is applied by shader mask
+                        size: 24,
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              // Animated text that shows/hides
+              ClipRect(
+                child: AnimatedSize(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOut,
+                  child: SizedBox(
+                    width: isActive ? null : 0,
+                    child: Padding(
+                      padding: EdgeInsets.only(left: isActive ? 8.0 : 0),
+                      child: Text(
+                        isActive ? label : '',
+                        style: GoogleFonts.poppins(
+                          color: activeColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // This is the exact implementation from the reference code
+  Widget _buildCustomHeader() {
+    return Container(
+      height: 220,
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color.fromARGB(255, 105, 50, 144), // purple-ish
+            Color(0xFFa044ff),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // 1) Silhouette at bottom
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Opacity(
+              opacity: 0.3,
+              child: Image.asset(
+                'assets/images/mosque_image.jpeg',
+                fit: BoxFit.cover,
+                height: 100,
+              ),
             ),
-            margin: const EdgeInsets.fromLTRB(10, 5, 10, 5),
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          ),
+
+          // 2) Row with menu & notifications icons
+          Positioned(
+            top: 45,
+            left: 16,
+            right: 16,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                GestureDetector(
-                  onTap: () {
-                    Scaffold.of(context).openDrawer();
-                  },
-                  child: Icon(Icons.menu, color: primaryColor, size: 28),
+                // Menu icon - open drawer
+                Builder(
+                  builder:
+                      (ctx) => IconButton(
+                        onPressed: () {
+                          Scaffold.of(ctx).openDrawer(); // open the drawer
+                        },
+                        icon: const Icon(
+                          IconlyLight.category,
+                          color: Colors.white,
+                        ),
+                      ),
                 ),
-                Text(
-                  'Kashmiri Marsiya',
-                  style: GoogleFonts.poppins(
-                    color: primaryColor,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
+                // Notification icon
+                IconButton(
+                  onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Notifications tapped!')),
                     );
                   },
-                  child: Icon(
-                    Icons.notifications_none_rounded,
-                    color: primaryColor,
-                    size: 28,
+                  icon: const Icon(
+                    IconlyLight.notification,
+                    color: Colors.white,
                   ),
                 ),
               ],
             ),
           ),
-        ),
 
-        // Add a small space between the top bar and date card
-        SizedBox(height: 10),
+          // 3) The date text + prayer times in the middle
+          Positioned(
+            left: 16,
+            right: 16,
+            top: 95,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // The date
+                Text(
+                  _hijriDate.isNotEmpty ? _hijriDate : 'Loading date...',
+                  style: GoogleFonts.nunitoSans(
+                    fontSize: 16,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 20),
 
-        // Islamic Date Card - Exact green style from image
-        Container(
-          width: double.infinity,
-          margin: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-          decoration: BoxDecoration(
-            color: primaryColor,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: primaryColor.withOpacity(0.25),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
+                // Row of prayer times
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildPrayerTimeColumn(
+                      "Fajr",
+                      _fajr.isNotEmpty ? _fajr : "--:--",
+                    ),
+                    _buildPrayerTimeColumn(
+                      "Sunrise",
+                      _sunrise.isNotEmpty ? _sunrise : "--:--",
+                    ),
+                    _buildPrayerTimeColumn(
+                      "Dhuhr",
+                      _dhuhr.isNotEmpty ? _dhuhr : "--:--",
+                    ),
+                    _buildPrayerTimeColumn(
+                      "Maghrib",
+                      _maghrib.isNotEmpty ? _maghrib : "--:--",
+                    ),
+                    _buildPrayerTimeColumn(
+                      "MidNight",
+                      _midnight.isNotEmpty ? _midnight : "--:--",
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          child: Row(
-            children: [
-              Icon(Icons.calendar_today, color: Colors.white, size: 22),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _hijriDate.isNotEmpty ? _hijriDate : '13 Shawwál 1446',
-                    style: GoogleFonts.poppins(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+
+          // 4) Search bar overlapping at the bottom with animated text
+          Positioned(
+            bottom: -25,
+            left: 16,
+            right: 16,
+            child: GestureDetector(
+              onTap: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Coming Soon!',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    backgroundColor: const Color(0xFF7B2CBF), // Purple
+                    duration: const Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                    margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  Text(
-                    _gregorianDate.isNotEmpty
-                        ? _gregorianDate
-                        : '11 April 2025',
-                    style: GoogleFonts.poppins(
-                      color: Colors.white.withOpacity(0.85),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w400,
+                );
+              },
+              child: Container(
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      spreadRadius: 2,
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Icon(
+                      IconlyLight.search,
+                      color: Colors.grey.shade500,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(child: _buildAnimatedSearchText()),
+                  ],
+                ),
               ),
-            ],
-          ),
-        ),
-
-        // Clean Prayer Times Section - Matching exactly the UI shown
-        Container(
-          width: double.infinity,
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          padding: const EdgeInsets.fromLTRB(8, 16, 8, 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child:
-              _fajr.isEmpty &&
-                      _sunrise.isEmpty &&
-                      _dhuhr.isEmpty &&
-                      _maghrib.isEmpty &&
-                      _midnight.isEmpty
-                  ? _buildPrayerTimesLoading()
-                  : Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildPrayerTimeItem(
-                        'Fajr',
-                        _fajr.isNotEmpty ? _fajr : '05:09',
-                        Icons.nightlight_outlined,
-                      ),
-                      _buildPrayerTimeItem(
-                        'Sunrise',
-                        _sunrise.isNotEmpty ? _sunrise : '06:05',
-                        Icons.wb_sunny_outlined,
-                      ),
-                      _buildPrayerTimeItem(
-                        'Dhuhr',
-                        _dhuhr.isNotEmpty ? _dhuhr : '12:32',
-                        Icons.sunny,
-                      ),
-                      _buildPrayerTimeItem(
-                        'Maghrib',
-                        _maghrib.isNotEmpty ? _maghrib : '18:59',
-                        Icons.nightlight_round,
-                      ),
-                      _buildPrayerTimeItem(
-                        'Midnight',
-                        _midnight.isNotEmpty ? _midnight : '00:32',
-                        Icons.bedtime_outlined,
-                      ),
-                    ],
-                  ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPrayerTimeItem(String name, String time, IconData icon) {
-    return Column(
-      children: [
-        Icon(icon, color: primaryColor.withOpacity(0.7), size: 18),
-        const SizedBox(height: 6),
-        Text(
-          time,
-          style: GoogleFonts.poppins(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: textPrimaryColor,
-          ),
-        ),
-        Text(
-          name,
-          style: GoogleFonts.poppins(
-            fontSize: 11,
-            fontWeight: FontWeight.w400,
-            color: textSecondaryColor,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Create custom QuickActionsRow widget
-  Widget _buildQuickAccessSection() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  // Animated search text widget
+  Widget _buildAnimatedSearchText() {
+    return TweenAnimationBuilder(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: const Duration(seconds: 3),
+      curve: Curves.easeInOut,
+      builder: (context, value, child) {
+        return ShaderMask(
+          shaderCallback: (rect) {
+            return LinearGradient(
+              colors: const [
+                Color(0xFF7B2CBF), // Purple
+                Color(0xFF9747FF), // Light purple
+                Colors.blue,
+                Color(0xFF7B2CBF), // Purple again
+              ],
+              stops: [0.0, 0.3, 0.6, 1.0],
+              begin: Alignment(-1.0 + 2 * value, 0),
+              end: Alignment(1.0 + 2 * value, 0),
+            ).createShader(rect);
+          },
+          child: Text(
+            "marsiya.ai",
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Colors.white, // Color doesn't matter due to shader mask
+            ),
+          ),
+        );
+      },
+      onEnd: () {
+        // Rebuild to restart the animation when it completes
+        if (mounted) setState(() {});
+      },
+    );
+  }
+
+  // Helper method to build a prayer time column matching the reference code
+  Widget _buildPrayerTimeColumn(String label, String time) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.nunitoSans(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          time,
+          style: GoogleFonts.nunitoSans(
+            fontSize: 13,
+            color: const Color.fromARGB(255, 255, 241, 241),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Create custom QuickActionsRow widget with only Marsiya and Noha cards
+  Widget _buildQuickAccessSection() {
+    return Container(
+      margin: const EdgeInsets.only(top: 30, bottom: 24),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
                 Container(
                   width: 4,
                   height: 20,
                   decoration: BoxDecoration(
-                    color: primaryColor,
+                    color: const Color(0xFF7B2CBF), // Purple
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Text(
                   "Quick Access",
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.nunitoSans(
                     color: textPrimaryColor,
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
@@ -1015,36 +1161,46 @@ class _HomeScreenState extends State<HomeScreen>
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+          const SizedBox(height: 10),
+
+          // Only Marsiya and Noha cards with enhanced design
+          Container(
+            height: 160,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildQuickAccessItem(
-                  icon: Icons.music_note,
-                  title: 'Marsiya',
-                  color: const Color(0xFF00875A), // Primary green
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const MarsiyaScreen(),
-                      ),
-                    );
-                  },
+                Expanded(
+                  child: _buildEnhancedQuickAccessCard(
+                    icon: IconlyBold.paper,
+                    title: 'Marsiya',
+                    description: 'Explore elegies and poetry',
+                    color: const Color(0xFF7B2CBF), // Purple
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const MarsiyaScreen(),
+                        ),
+                      );
+                    },
+                  ),
                 ),
-                _buildQuickAccessItem(
-                  icon: Icons.headphones,
-                  title: 'Noha',
-                  color: const Color(0xFF2196F3), // Bright blue
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const NohaScreen(),
-                      ),
-                    );
-                  },
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildEnhancedQuickAccessCard(
+                    icon: IconlyBold.voice,
+                    title: 'Noha',
+                    description: 'Discover lamentation hymns',
+                    color: const Color(0xFF2B6EFF), // Blue
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NohaScreen(),
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ],
             ),
@@ -1054,73 +1210,163 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildQuickAccessItem({
+  // Enhanced card design with animations
+  Widget _buildEnhancedQuickAccessCard({
     required IconData icon,
     required String title,
+    required String description,
     required Color color,
     required VoidCallback onTap,
   }) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          height: 110,
-          margin: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: color.withOpacity(0.25),
-                blurRadius: 8,
-                spreadRadius: 0,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  shape: BoxShape.circle,
+    return GestureDetector(
+      onTap: onTap,
+      child: TweenAnimationBuilder(
+        tween: Tween<double>(begin: 0.95, end: 1.0),
+        duration: const Duration(milliseconds: 300),
+        builder: (context, value, child) {
+          return Transform.scale(
+            scale: value,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    color,
+                    color.withOpacity(0.8),
+                    color.withOpacity(0.6),
+                  ],
+                  stops: const [0.0, 0.6, 1.0],
                 ),
-                child: Center(child: Icon(icon, color: Colors.white, size: 24)),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: GoogleFonts.poppins(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 18,
-                ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Explore',
-                    style: GoogleFonts.poppins(
-                      color: Colors.white.withOpacity(0.9),
-                      fontWeight: FontWeight.w400,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.arrow_forward,
-                    color: Colors.white.withOpacity(0.9),
-                    size: 14,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.3),
+                    blurRadius: 12,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 5),
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Stack(
+                  children: [
+                    // Background decoration
+                    Positioned(
+                      right: -20,
+                      bottom: -20,
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withOpacity(0.1),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: -30,
+                      top: -30,
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withOpacity(0.1),
+                        ),
+                      ),
+                    ),
+
+                    // Content
+                    Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Icon with glow effect
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.15),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.white.withOpacity(0.1),
+                                  blurRadius: 12,
+                                  spreadRadius: 0,
+                                ),
+                              ],
+                            ),
+                            child: Icon(icon, color: Colors.white, size: 24),
+                          ),
+                          const Spacer(),
+
+                          // Title
+                          Text(
+                            title,
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+
+                          // Description
+                          Text(
+                            description,
+                            style: GoogleFonts.nunitoSans(
+                              fontSize: 12,
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Explore button
+                    Positioned(
+                      right: 12,
+                      bottom: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Explore',
+                              style: GoogleFonts.nunitoSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(
+                              IconlyLight.arrow_right,
+                              color: Colors.white,
+                              size: 14,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -1154,7 +1400,7 @@ class _HomeScreenState extends State<HomeScreen>
                         const SizedBox(width: 8),
                         Text(
                           "Top Zakirs",
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.nunitoSans(
                             color: textPrimaryColor,
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -1176,7 +1422,7 @@ class _HomeScreenState extends State<HomeScreen>
                         children: [
                           Text(
                             "View All",
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.nunitoSans(
                               color: primaryColor,
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
@@ -1214,7 +1460,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ? Center(
                           child: Text(
                             'No Zakirs available',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.nunitoSans(
                               color: textSecondaryColor,
                               fontSize: 14,
                             ),
@@ -1276,7 +1522,7 @@ class _HomeScreenState extends State<HomeScreen>
                         const SizedBox(width: 8),
                         Text(
                           "Top Noha Khans",
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.nunitoSans(
                             color: textPrimaryColor,
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -1298,7 +1544,7 @@ class _HomeScreenState extends State<HomeScreen>
                         children: [
                           Text(
                             "View All",
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.nunitoSans(
                               color: accentColor,
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
@@ -1540,7 +1786,7 @@ class _HomeScreenState extends State<HomeScreen>
                 const SizedBox(width: 8),
                 Text(
                   "Featured Content",
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.nunitoSans(
                     color: textPrimaryColor,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -1552,7 +1798,7 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ),
         // Added container with fixed height to prevent overflow
-        Container(height: 210, child: _buildBannerCarousel()),
+        SizedBox(height: 210, child: _buildBannerCarousel()),
         // Rest of content remains the same
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1569,7 +1815,7 @@ class _HomeScreenState extends State<HomeScreen>
               const SizedBox(width: 8),
               Text(
                 "Explore",
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.nunitoSans(
                   color: textPrimaryColor,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -1593,7 +1839,7 @@ class _HomeScreenState extends State<HomeScreen>
           height: 180,
           child: PageView.builder(
             controller: _pageController,
-            itemCount: _posters.length > 0 ? _posters.length : 1,
+            itemCount: _posters.isNotEmpty ? _posters.length : 1,
             onPageChanged: (index) {
               setState(() => _currentPage = index);
             },
@@ -1608,7 +1854,7 @@ class _HomeScreenState extends State<HomeScreen>
                   child: Center(
                     child: Text(
                       'No content available',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.nunitoSans(
                         color: textSecondaryColor,
                         fontSize: 14,
                       ),
@@ -1670,9 +1916,9 @@ class _HomeScreenState extends State<HomeScreen>
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withOpacity(0.2),
               blurRadius: 15,
-              spreadRadius: 1,
+              spreadRadius: 2,
               offset: const Offset(0, 6),
             ),
           ],
@@ -1687,14 +1933,23 @@ class _HomeScreenState extends State<HomeScreen>
                   poster.imageUrl,
                   width: double.infinity,
                   height: 180,
-                  fit: BoxFit.cover,
+                  fit:
+                      BoxFit
+                          .fill, // Changed from cover to fill to ensure no gaps
                   loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) return child;
                     return Container(
                       width: double.infinity,
                       height: 180,
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.purple.shade100,
+                            Colors.blue.shade100,
+                          ],
+                        ),
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: Center(
@@ -1705,7 +1960,7 @@ class _HomeScreenState extends State<HomeScreen>
                                       loadingProgress.expectedTotalBytes!
                                   : null,
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            primaryColor,
+                            const Color(0xFF7B2CBF),
                           ),
                         ),
                       ),
@@ -1717,13 +1972,17 @@ class _HomeScreenState extends State<HomeScreen>
                       width: double.infinity,
                       height: 180,
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Colors.purple.shade50, Colors.blue.shade50],
+                        ),
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: Center(
                         child: Icon(
                           Icons.image_not_supported,
-                          color: Colors.grey,
+                          color: Colors.grey.shade400,
                           size: 40,
                         ),
                       ),
@@ -1731,74 +1990,22 @@ class _HomeScreenState extends State<HomeScreen>
                   },
                 ),
               ),
+              // Add shine effect
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                       colors: [
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.7),
+                        Colors.white.withOpacity(0.3),
+                        Colors.white.withOpacity(0.0),
+                        Colors.white.withOpacity(0.0),
+                        Colors.white.withOpacity(0.2),
                       ],
-                      stops: const [0.5, 1.0],
+                      stops: const [0.0, 0.3, 0.8, 1.0],
                     ),
                   ),
-                ),
-              ),
-              Positioned(
-                bottom: 15,
-                left: 15,
-                right: 15,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      poster.title,
-                      style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
-                        shadows: [
-                          Shadow(
-                            blurRadius: 3.0,
-                            color: Colors.black.withOpacity(0.5),
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: primaryColor,
-                        borderRadius: BorderRadius.circular(30),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 8,
-                            spreadRadius: 1,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Text(
-                        'Learn More',
-                        style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ],
@@ -1816,9 +2023,9 @@ class _HomeScreenState extends State<HomeScreen>
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           crossAxisCount: 3,
-          mainAxisSpacing: 8,
+          mainAxisSpacing: 12,
           crossAxisSpacing: 12,
-          childAspectRatio: 1.05,
+          childAspectRatio: 0.95,
           children: List.generate(
             features.length,
             (index) => AnimationConfiguration.staggeredGrid(
@@ -1831,6 +2038,7 @@ class _HomeScreenState extends State<HomeScreen>
                   child: _buildFeatureCard(
                     features[index]['icon'],
                     features[index]['label'],
+                    _getColorForIndex(index),
                   ),
                 ),
               ),
@@ -1841,7 +2049,19 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildFeatureCard(IconData icon, String label) {
+  Color _getColorForIndex(int index) {
+    final List<Color> colors = [
+      const Color(0xFF7B2CBF), // Purple
+      const Color(0xFF2C7BBF), // Blue
+      const Color(0xFF2CBF7B), // Green
+      const Color(0xFFBF7B2C), // Orange
+      const Color(0xFFBF2C7B), // Pink
+      const Color(0xFF7B2CBF), // Purple again
+    ];
+    return colors[index % colors.length];
+  }
+
+  Widget _buildFeatureCard(IconData icon, String label, Color themeColor) {
     return GestureDetector(
       onTap: () {
         switch (label) {
@@ -1919,12 +2139,6 @@ class _HomeScreenState extends State<HomeScreen>
               MaterialPageRoute(builder: (context) => const ContactUsScreen()),
             );
             break;
-          case 'Help Us':
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const HelpUsScreen()),
-            );
-            break;
           case 'Community':
             Navigator.push(
               context,
@@ -1945,53 +2159,372 @@ class _HomeScreenState extends State<HomeScreen>
       },
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              themeColor,
+              themeColor.withOpacity(0.8),
+              themeColor.withOpacity(0.6),
+            ],
+            stops: const [0.0, 0.6, 1.0],
+          ),
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: themeColor.withOpacity(0.3),
               blurRadius: 8,
               spreadRadius: 0,
               offset: const Offset(0, 3),
             ),
           ],
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: primaryColor.withOpacity(0.1),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: primaryColor.withOpacity(0.12),
-                    blurRadius: 6,
-                    spreadRadius: 0,
-                    offset: const Offset(0, 2),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Stack(
+            children: [
+              // Background decoration pattern
+              Positioned(
+                right: -20,
+                bottom: -20,
+                child: Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withOpacity(0.1),
                   ),
-                ],
+                ),
               ),
-              child: Icon(icon, size: 26, color: primaryColor),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.poppins(
-                color: textPrimaryColor,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+              Positioned(
+                left: -15,
+                top: -15,
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withOpacity(0.1),
+                  ),
+                ),
               ),
-            ),
-          ],
+              // Content
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 6,
+                            spreadRadius: 0,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: _getIconlyIcon(label, Colors.white),
+                    ),
+                    const Spacer(),
+                    Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Small arrow at bottom
+              Positioned(
+                right: 8,
+                bottom: 8,
+                child: Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      IconlyLight.arrow_right,
+                      color: Colors.white,
+                      size: 10,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
+  Widget _getIconlyIcon(String label, Color color) {
+    switch (label) {
+      case 'About Us':
+        return Icon(IconlyBold.info_circle, color: color, size: 24);
+      case 'Education':
+        return Icon(IconlyBold.document, color: color, size: 24);
+      case 'Contact Us':
+        return Icon(IconlyBold.chat, color: color, size: 24);
+      default:
+        return Icon(IconlyBold.star, color: color, size: 24);
+    }
+  }
+
+  // Build footer section
+  Widget _buildFooter() {
+    return Container(
+      margin: const EdgeInsets.only(top: 24, bottom: 24),
+      child: Column(
+        children: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              // Background design
+              Container(
+                height: 180,
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      const Color.fromARGB(255, 41, 2, 75).withOpacity(0.8),
+                      const Color.fromARGB(255, 31, 3, 67).withOpacity(0.7),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.purple.withOpacity(0.3),
+                      blurRadius: 15,
+                      spreadRadius: 1,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: Stack(
+                    children: [
+                      // Abstract pattern overlay
+                      Positioned(
+                        right: -30,
+                        bottom: -30,
+                        child: Container(
+                          width: 140,
+                          height: 140,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withOpacity(0.1),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: -20,
+                        top: -20,
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withOpacity(0.1),
+                          ),
+                        ),
+                      ),
+                      // Shimmering effect layer
+                      Positioned.fill(
+                        child: ShaderMask(
+                          shaderCallback: (rect) {
+                            return LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.white.withOpacity(0.1),
+                                Colors.white.withOpacity(0.05),
+                                Colors.white.withOpacity(0.0),
+                              ],
+                            ).createShader(rect);
+                          },
+                          child: Container(color: Colors.white),
+                        ),
+                      ),
+
+                      // Tap indicator
+                      Positioned(
+                        bottom: 15,
+                        right: 15,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Visit',
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                IconlyLight.arrow_right_circle,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Content overlaid on top
+              GestureDetector(
+                onTap: () => _launchUrl('https://algodream.in'),
+                child: Column(
+                  children: [
+                    // Logo with glowing effect
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.white.withOpacity(0.8),
+                            blurRadius: 20,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/images/adts-circle.png',
+                          width: 70,
+                          height: 70,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Tagline with gradient
+                    ShaderMask(
+                      shaderCallback: (rect) {
+                        return LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.white, Colors.white.withOpacity(0.9)],
+                        ).createShader(rect);
+                      },
+                      child: Text(
+                        'Designed & Developed by',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    // Company name with dramatic styling
+                    Text(
+                      'ADTS',
+                      style: GoogleFonts.poppins(
+                        fontSize: 30,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 3.0,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withOpacity(0.3),
+                            offset: const Offset(0, 2),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    // Website URL with sleek styling
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Text(
+                        'algodream.in',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '© 2025 AlgoDream Technical Services',
+            style: GoogleFonts.nunitoSans(
+              fontSize: 12,
+              color: textSecondaryColor,
+              fontWeight: FontWeight.w400,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _launchUrl(String url) async {
+    if (await canLaunch(url)) {
+      await launch(url);
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not launch $url')));
+    }
+  }
+
+  // Build Prayer Times Loading widget
   Widget _buildPrayerTimesLoading() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -2115,125 +2648,6 @@ class _HomeScreenState extends State<HomeScreen>
     } catch (e) {
       debugPrint('Error fetching profiles: $e');
       setState(() => _isLoadingProfiles = false);
-    }
-  }
-
-  // Build footer section
-  Widget _buildFooter() {
-    return Container(
-      margin: const EdgeInsets.only(top: 24, bottom: 24),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: GestureDetector(
-              onTap: () => _launchUrl('https://algodream.in'),
-              child: Column(
-                children: [
-                  // Logo image
-                  ClipOval(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        boxShadow: [
-                          BoxShadow(
-                            color: primaryColor.withOpacity(0.2),
-                            blurRadius: 10,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                      child: Image.asset(
-                        'assets/images/adts-circle.png',
-                        width: 70,
-                        height: 70,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Designed & Developed by',
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      color: textSecondaryColor,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'ADTS',
-                    style: GoogleFonts.poppins(
-                      fontSize: 22,
-                      color: primaryColor,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'https://algodream.in',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: primaryColor,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Icon(Icons.open_in_new, color: primaryColor, size: 14),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '© 2024 AlgoDream Technologies',
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              color: textSecondaryColor,
-              fontWeight: FontWeight.w400,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _launchUrl(String url) async {
-    if (await canLaunch(url)) {
-      await launch(url);
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not launch $url')));
     }
   }
 }

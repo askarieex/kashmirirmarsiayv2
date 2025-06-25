@@ -7,15 +7,19 @@ import 'dart:ui' as ui;
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:iconly/iconly.dart';
 import 'full_noha_audio_play.dart';
 import 'dart:typed_data';
 import '../widgets/persistent_mini_player.dart';
+import '../utilities/safe_scroll_controller.dart';
 
 // Import your bottom navigation targets (if not already imported)
 import 'home_screen.dart';
 import 'marsiya_screen.dart';
 
 const Color accentTeal = Color(0xFF008F41);
+const Color backgroundColor = Color(0xFFF2F7F7);
 
 class NohaAudioScreen extends StatefulWidget {
   const NohaAudioScreen({super.key});
@@ -25,13 +29,19 @@ class NohaAudioScreen extends StatefulWidget {
 }
 
 class _NohaAudioScreenState extends State<NohaAudioScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late TabController _tabController;
   late ScrollController _scrollController;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   bool _isLoading = true;
   bool _isLoadingMore = false;
+  bool _isSearchFocused = false;
+
+  // Animation controller for search bar
+  late AnimationController _searchAnimationController;
+  late Animation<double> _searchBarWidthAnimation;
+  final FocusNode _searchFocusNode = FocusNode();
 
   // List to hold the noha audio data from the API.
   List<Map<String, dynamic>> _nohaList = [];
@@ -62,6 +72,36 @@ class _NohaAudioScreenState extends State<NohaAudioScreen>
     });
     _scrollController = ScrollController();
     _scrollController.addListener(_scrollListener);
+
+    // Initialize search animation controller
+    _searchAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+
+    _searchBarWidthAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _searchAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    _searchFocusNode.addListener(() {
+      if (_searchFocusNode.hasFocus) {
+        _searchAnimationController.forward();
+        setState(() {
+          _isSearchFocused = true;
+        });
+      } else {
+        if (_searchQuery.isEmpty) {
+          _searchAnimationController.reverse();
+          setState(() {
+            _isSearchFocused = false;
+          });
+        }
+      }
+    });
+
     fetchNoha();
   }
 
@@ -73,11 +113,11 @@ class _NohaAudioScreenState extends State<NohaAudioScreen>
   }
 
   void _scrollListener() {
-    if (_searchQuery.isEmpty && !_isLoadingMore && _hasMoreData) {
-      if (_scrollController.position.pixels >=
-          _scrollController.position.maxScrollExtent - 200) {
-        _loadMoreData();
-      }
+    // Use the safe scroll controller to check if we need to load more content
+    if (SafeScrollController.isAtEnd(_scrollController) &&
+        !_isLoadingMore &&
+        _hasMoreData) {
+      _loadMoreData();
     }
   }
 
@@ -318,6 +358,8 @@ class _NohaAudioScreenState extends State<NohaAudioScreen>
     _tabController.dispose();
     _scrollController.dispose();
     _searchController.dispose();
+    _searchFocusNode.dispose();
+    _searchAnimationController.dispose();
     super.dispose();
   }
 
@@ -326,7 +368,7 @@ class _NohaAudioScreenState extends State<NohaAudioScreen>
     List<Map<String, dynamic>> displayedList = filteredNohaList;
 
     return Scaffold(
-      backgroundColor: Colors.teal.shade50,
+      backgroundColor: backgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -343,6 +385,9 @@ class _NohaAudioScreenState extends State<NohaAudioScreen>
                           _hasMoreData = true;
                           await fetchNoha();
                         },
+                        color: accentTeal,
+                        backgroundColor: Colors.white,
+                        strokeWidth: 3,
                         child:
                             displayedList.isEmpty
                                 ? _buildEmptyState()
@@ -395,29 +440,29 @@ class _NohaAudioScreenState extends State<NohaAudioScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.music_note_outlined,
-            size: 80,
-            color: Colors.teal.shade300,
-          ),
+          Icon(IconlyBold.voice, size: 80, color: Colors.teal.shade300),
           const SizedBox(height: 16),
           Text(
             _searchQuery.isEmpty
                 ? "No noha audio available"
                 : "No results found for \"$_searchQuery\"",
-            style: TextStyle(
+            style: GoogleFonts.nunitoSans(
               fontSize: 18,
+              fontWeight: FontWeight.w600,
               color: Colors.teal.shade700,
-              fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 8),
           if (_searchQuery.isNotEmpty)
             TextButton.icon(
-              icon: Icon(Icons.close, color: Colors.teal.shade600),
+              icon: Icon(IconlyBold.close_square, color: Colors.teal.shade600),
               label: Text(
                 "Clear search",
-                style: TextStyle(color: Colors.teal.shade600),
+                style: GoogleFonts.nunitoSans(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.teal.shade600,
+                ),
               ),
               onPressed: () {
                 setState(() {
@@ -426,6 +471,16 @@ class _NohaAudioScreenState extends State<NohaAudioScreen>
                   _cachedFilteredList = null;
                 });
               },
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.teal.withOpacity(0.1),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+              ),
             ),
         ],
       ),
@@ -466,36 +521,39 @@ class _NohaAudioScreenState extends State<NohaAudioScreen>
 
   Widget _buildAppBar(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.teal.shade50,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.teal.withOpacity(0.1),
-            offset: const Offset(0, 2),
-            blurRadius: 4,
-          ),
-        ],
+        color: backgroundColor,
+        gradient: LinearGradient(
+          colors: [Colors.white, backgroundColor],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
       ),
       child: Row(
         children: [
           InkWell(
             onTap: () => Navigator.of(context).pop(),
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(20),
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(15),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.teal.withOpacity(0.2),
+                    color: accentTeal.withOpacity(0.15),
                     blurRadius: 4,
+                    spreadRadius: 0,
                     offset: const Offset(0, 2),
                   ),
                 ],
               ),
-              child: const Icon(Icons.arrow_back, color: accentTeal, size: 24),
+              child: const Icon(
+                IconlyLight.arrow_left,
+                color: accentTeal,
+                size: 24,
+              ),
             ),
           ),
           const SizedBox(width: 16),
@@ -503,109 +561,145 @@ class _NohaAudioScreenState extends State<NohaAudioScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'نوحہ آڈیو',
-                  style: TextStyle(
+                  style: GoogleFonts.notoNastaliqUrdu(
                     color: accentTeal,
                     fontWeight: FontWeight.bold,
-                    fontSize: 24,
-                    height: 1.2,
+                    fontSize: 15,
+                    height: 1.9,
                   ),
                   textDirection: ui.TextDirection.rtl,
                 ),
                 Text(
                   'Noha Audio Collection',
-                  style: TextStyle(color: Colors.teal.shade700, fontSize: 14),
+                  style: GoogleFonts.nunitoSans(
+                    color: Colors.teal.shade700,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.2,
+                  ),
                 ),
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(30),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.teal.withOpacity(0.2),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.favorite_border,
-              color: accentTeal,
-              size: 22,
-            ),
+          _buildFavoriteButton(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFavoriteButton() {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: accentTeal.withOpacity(0.15),
+            blurRadius: 4,
+            spreadRadius: 0,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
+      child: const Icon(IconlyLight.heart, color: accentTeal, size: 22),
     );
   }
 
   Widget _buildSearchBar() {
     return Hero(
       tag: 'searchBar',
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.2),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
+      child: AnimatedBuilder(
+        animation: _searchAnimationController,
+        builder: (context, child) {
+          return Container(
+            width:
+                MediaQuery.of(context).size.width *
+                (_searchBarWidthAnimation.value),
+            margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: accentTeal.withOpacity(0.1),
+                  blurRadius: 10,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: TextField(
-          controller: _searchController,
-          onChanged: (value) {
-            setState(() {
-              _searchQuery = value;
-              _cachedFilteredList = null;
-            });
-          },
-          style: TextStyle(color: Colors.grey.shade800),
-          decoration: InputDecoration(
-            hintText: 'Search noha, author...',
-            hintStyle: TextStyle(color: Colors.grey.shade400),
-            prefixIcon: Icon(
-              Icons.search,
-              color: Colors.teal.shade400,
-              size: 22,
+            child: TextField(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                  _cachedFilteredList = null;
+                });
+              },
+              style: GoogleFonts.nunitoSans(
+                color: Colors.grey.shade800,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Search noha, author...',
+                hintStyle: GoogleFonts.nunitoSans(
+                  color: Colors.grey.shade400,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+                prefixIcon: Icon(
+                  _isSearchFocused ? IconlyBold.search : IconlyLight.search,
+                  color: Colors.teal.shade400,
+                  size: 22,
+                ),
+                suffixIcon:
+                    _searchQuery.isNotEmpty
+                        ? IconButton(
+                          icon: Icon(
+                            IconlyBold.close_square,
+                            color: Colors.grey.shade500,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _searchController.clear();
+                              _searchQuery = '';
+                              _cachedFilteredList = null;
+                              _searchFocusNode.unfocus();
+                            });
+                          },
+                        )
+                        : null,
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 20,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide(
+                    color: accentTeal.withOpacity(0.3),
+                    width: 2,
+                  ),
+                ),
+              ),
             ),
-            suffixIcon:
-                _searchQuery.isNotEmpty
-                    ? IconButton(
-                      icon: Icon(
-                        Icons.close,
-                        color: Colors.grey.shade500,
-                        size: 20,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _searchController.clear();
-                          _searchQuery = '';
-                          _cachedFilteredList = null;
-                        });
-                      },
-                    )
-                    : null,
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(
-              vertical: 12,
-              horizontal: 20,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(30),
-              borderSide: BorderSide.none,
-            ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -619,8 +713,9 @@ class _NohaAudioScreenState extends State<NohaAudioScreen>
         borderRadius: BorderRadius.circular(25),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.15),
+            color: accentTeal.withOpacity(0.1),
             blurRadius: 8,
+            spreadRadius: 0,
             offset: const Offset(0, 2),
           ),
         ],
@@ -646,30 +741,37 @@ class _NohaAudioScreenState extends State<NohaAudioScreen>
           dividerColor: Colors.transparent,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.grey.shade600,
-          labelStyle: const TextStyle(
+          labelStyle: GoogleFonts.nunitoSans(
             fontSize: 15,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
             letterSpacing: 0.5,
           ),
-          unselectedLabelStyle: const TextStyle(
+          unselectedLabelStyle: GoogleFonts.nunitoSans(
             fontSize: 15,
             fontWeight: FontWeight.w500,
           ),
-          overlayColor: MaterialStateProperty.all(Colors.transparent),
+          overlayColor: WidgetStateProperty.all(Colors.transparent),
           splashFactory: NoSplash.splashFactory,
           padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 3),
-          tabs: const [
-            Tab(child: Center(child: Text('All', style: TextStyle(height: 1)))),
-            Tab(
-              child: Center(child: Text('Recent', style: TextStyle(height: 1))),
-            ),
-            Tab(
-              child: Center(
-                child: Text('Popular', style: TextStyle(height: 1)),
-              ),
-            ),
+          tabs: [
+            _buildTabItem(IconlyLight.document, 'All'),
+            _buildTabItem(IconlyLight.time_circle, 'Recent'),
+            _buildTabItem(IconlyLight.star, 'Popular'),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTabItem(IconData icon, String title) {
+    return Tab(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 16),
+          const SizedBox(width: 4),
+          Text(title, style: const TextStyle(height: 1)),
+        ],
       ),
     );
   }
@@ -693,161 +795,202 @@ class _NohaAudioScreenState extends State<NohaAudioScreen>
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _onItemTap(item),
-          borderRadius: BorderRadius.circular(16),
-          child: Ink(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.teal.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: accentTeal.withOpacity(0.12),
+              blurRadius: 15,
+              spreadRadius: 1,
+              offset: const Offset(0, 6),
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Visual play icon with ripple effect
-                Hero(
-                  tag: 'play_${item['id'].toString()}',
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () => _onItemTap(item),
-                      borderRadius: BorderRadius.circular(28),
-                      child: Ink(
-                        width: 56,
-                        height: 56,
+            BoxShadow(
+              color: Colors.white.withOpacity(0.7),
+              blurRadius: 8,
+              spreadRadius: 1,
+              offset: const Offset(-3, -3),
+            ),
+          ],
+          border: Border.all(color: Colors.teal.withOpacity(0.05)),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _onItemTap(item),
+              splashColor: accentTeal.withOpacity(0.1),
+              highlightColor: accentTeal.withOpacity(0.05),
+              child: Padding(
+                padding: const EdgeInsets.all(14.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Beautiful play button with animation effect
+                    Hero(
+                      tag: 'play_${item['id'].toString()}',
+                      child: Container(
+                        width: 58,
+                        height: 58,
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [accentTeal.withOpacity(0.9), accentTeal],
+                            colors: [
+                              accentTeal,
+                              Color(0xFF00B77E),
+                              Color(0xFF00D68F),
+                            ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
-                          borderRadius: BorderRadius.circular(28),
+                          borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: accentTeal.withOpacity(0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
+                              color: accentTeal.withOpacity(0.25),
+                              blurRadius: 12,
+                              spreadRadius: 0,
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.play_arrow_rounded,
-                            color: Colors.white,
-                            size: 32,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => _onItemTap(item),
+                            borderRadius: BorderRadius.circular(16),
+                            child: const Center(
+                              child: Icon(
+                                IconlyLight.play,
+                                color: Colors.white,
+                                size: 26,
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Main content
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item['title'] ?? "Untitled Noha",
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Color(0xFF333333),
-                            height: 1.2,
+                    const SizedBox(width: 16),
+
+                    // Content section with improved layout and styling
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Title with elegant text styling
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            child: Text(
+                              item['title'] ?? '',
+                              style: GoogleFonts.notoNastaliqUrdu(
+                                color: const Color(0xFF2D3A3A),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 17,
+                                height: 1.8,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 2,
+                              textDirection: ui.TextDirection.rtl,
+                              textAlign: TextAlign.right,
+                            ),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.person,
-                              size: 14,
-                              color: Colors.grey.shade600,
+
+                          // Author with badge
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
                             ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                displayAuthor,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey.shade700,
+                            decoration: BoxDecoration(
+                              color: accentTeal.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: accentTeal.withOpacity(0.1),
+                                width: 1.0,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  IconlyLight.profile,
+                                  size: 12,
+                                  color: accentTeal,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    displayAuthor,
+                                    style: GoogleFonts.poppins(
+                                      color: accentTeal.withOpacity(0.9),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Details row with attractive styling
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: [
+                              _buildDetailChip(
+                                IconlyLight.time_circle,
+                                duration,
+                                Colors.purple.shade400,
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            // Views
-                            Icon(
-                              Icons.visibility_outlined,
-                              size: 14,
-                              color: Colors.grey.shade500,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              "$views views",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
+                              _buildDetailChip(
+                                IconlyLight.show,
+                                "$views views",
+                                Colors.blue.shade400,
                               ),
-                            ),
-                            const SizedBox(width: 16),
-                            // Duration
-                            Icon(
-                              Icons.timer_outlined,
-                              size: 14,
-                              color: Colors.grey.shade500,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              duration,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
+                              _buildDetailChip(
+                                IconlyLight.calendar,
+                                formattedDate.split(" at")[0],
+                                Colors.orange.shade400,
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-                // Arrow icon
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  margin: const EdgeInsets.only(right: 16),
-                  child: Icon(
-                    Icons.arrow_forward_ios,
-                    color: accentTeal,
-                    size: 16,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDetailChip(IconData icon, String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: GoogleFonts.poppins(
+              color: color.withOpacity(0.8),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }

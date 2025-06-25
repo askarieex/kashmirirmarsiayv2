@@ -8,11 +8,11 @@ class SponsoredAdBanner extends StatefulWidget {
   final EdgeInsetsGeometry? margin;
 
   const SponsoredAdBanner({
-    Key? key,
+    super.key,
     required this.adItems,
     this.height = 150,
     this.margin,
-  }) : super(key: key);
+  });
 
   @override
   State<SponsoredAdBanner> createState() => _SponsoredAdBannerState();
@@ -310,8 +310,7 @@ class HoverableAdCard extends StatefulWidget {
   final Widget child;
   final VoidCallback? onTap;
 
-  const HoverableAdCard({Key? key, required this.child, this.onTap})
-    : super(key: key);
+  const HoverableAdCard({super.key, required this.child, this.onTap});
 
   @override
   State<HoverableAdCard> createState() => _HoverableAdCardState();
@@ -360,7 +359,7 @@ class _HoverableAdCardState extends State<HoverableAdCard> {
 class PulseAnimatedButton extends StatefulWidget {
   final VoidCallback? onTap;
 
-  const PulseAnimatedButton({Key? key, this.onTap}) : super(key: key);
+  const PulseAnimatedButton({super.key, this.onTap});
 
   @override
   State<PulseAnimatedButton> createState() => _PulseAnimatedButtonState();

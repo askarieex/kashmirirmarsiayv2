@@ -62,7 +62,7 @@ const double navBarHeight = 60.0;
 const Color primaryColor = Color(0xFF0D9051); // App green color
 
 class PersistentMiniPlayer extends StatefulWidget {
-  const PersistentMiniPlayer({Key? key}) : super(key: key);
+  const PersistentMiniPlayer({super.key});
 
   @override
   _PersistentMiniPlayerState createState() => _PersistentMiniPlayerState();
@@ -590,6 +590,7 @@ class _PersistentMiniPlayerState extends State<PersistentMiniPlayer>
                                         splashColor: primaryColor.withOpacity(
                                           0.2,
                                         ),
+                                        onTap: _handlePreviousTrack,
                                         child: Container(
                                           padding: EdgeInsets.all(8),
                                           child: Icon(
@@ -598,7 +599,6 @@ class _PersistentMiniPlayerState extends State<PersistentMiniPlayer>
                                             size: 28,
                                           ),
                                         ),
-                                        onTap: _handlePreviousTrack,
                                       ),
                                     ),
                                   ),
@@ -676,6 +676,7 @@ class _PersistentMiniPlayerState extends State<PersistentMiniPlayer>
                                         splashColor: primaryColor.withOpacity(
                                           0.2,
                                         ),
+                                        onTap: _handleNextTrack,
                                         child: Container(
                                           padding: EdgeInsets.all(8),
                                           child: Icon(
@@ -684,7 +685,6 @@ class _PersistentMiniPlayerState extends State<PersistentMiniPlayer>
                                             size: 28,
                                           ),
                                         ),
-                                        onTap: _handleNextTrack,
                                       ),
                                     ),
                                   ),

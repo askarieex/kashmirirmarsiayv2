@@ -2,7 +2,7 @@ name: Marsiya
 description: A new Flutter project.
 
 publish_to: 'none' 
-version: 1.0.0+6
+version: 1.0.0+7
 
 environment:
   sdk: ^3.7.0
@@ -12,7 +12,7 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
   http: ^1.1.0
-  google_fonts: ^5.1.0
+  google_fonts: ^6.2.1
   cached_network_image: ^3.2.3
   shimmer: ^3.0.0
   url_launcher: ^6.3.1
@@ -27,8 +27,13 @@ dependencies:
   typed_data: ^1.3.0  # For Uint8List
   share_plus: ^7.0.2
   fluttertoast: ^8.0.9
+  flutter_animate: ^4.5.2
   flutter_pdfview: ^1.4.0
   path_provider: ^2.1.5
+  font_awesome_flutter: ^10.5.0
+  iconly: ^1.0.1
+  shared_preferences: ^2.2.2
+  lottie: ^3.3.1
 
 
 
@@ -69,3 +74,4 @@ flutter:
     - assets/images/karbala.jpg
     - assets/images/unnamed.png
     - assets/images/adts-circle.png
+    - assets/images/mosque_image.jpeg

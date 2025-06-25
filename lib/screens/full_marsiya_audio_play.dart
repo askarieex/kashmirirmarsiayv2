@@ -9,14 +9,14 @@ import 'package:marquee/marquee.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:iconly/iconly.dart';
 import 'dart:io';
 
 // Import the persistent mini player notifier.
 import '../widgets/persistent_mini_player.dart';
 
 // Import additional screens for bottom navigation.
-import 'home_screen.dart';
-import 'noha_screen.dart';
 
 /// Global audio player instance to persist playback.
 final AudioPlayer globalAudioPlayer = AudioPlayer();
@@ -34,7 +34,7 @@ Future<void> main() async {
 }
 
 class MarsiyaAudioApp extends StatelessWidget {
-  const MarsiyaAudioApp({Key? key}) : super(key: key);
+  const MarsiyaAudioApp({super.key});
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'Marsiya Audio Player',
@@ -46,13 +46,18 @@ class MarsiyaAudioApp extends StatelessWidget {
         primary: Color(0xFF1A8754),
         secondary: Color(0xFF0D7148),
         surface: Colors.white,
-        background: Colors.white,
         onPrimary: Colors.white,
       ),
-      appBarTheme: const AppBarTheme(
+      textTheme: GoogleFonts.poppinsTextTheme(),
+      appBarTheme: AppBarTheme(
         backgroundColor: Colors.white,
         elevation: 0,
-        iconTheme: IconThemeData(color: Color(0xFF1A8754)),
+        iconTheme: const IconThemeData(color: Color(0xFF1A8754)),
+        titleTextStyle: GoogleFonts.poppins(
+          color: const Color(0xFF1A8754),
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -61,17 +66,20 @@ class MarsiyaAudioApp extends StatelessWidget {
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(20)),
           ),
+          textStyle: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       sliderTheme: SliderThemeData(
         activeTrackColor: const Color(0xFF1A8754),
-        inactiveTrackColor: Colors.grey,
+        inactiveTrackColor: Colors.grey.shade200,
         thumbColor: const Color(0xFF1A8754),
-        trackHeight: 5.0,
-        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
+        trackHeight: 4.0,
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
         overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
       ),
-      fontFamily: 'Roboto',
     ),
     home: const FullMarsiyaAudioPlay(audioId: "13"),
   );
@@ -81,10 +89,10 @@ class FullMarsiyaAudioPlay extends StatefulWidget {
   final String audioId;
   final bool autoPlay;
   const FullMarsiyaAudioPlay({
-    Key? key,
+    super.key,
     required this.audioId,
     this.autoPlay = false,
-  }) : super(key: key);
+  });
   @override
   State<FullMarsiyaAudioPlay> createState() => _FullMarsiyaAudioPlayState();
 }
@@ -225,8 +233,9 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
             setState(() {
               title = data['title'] ?? 'Audio';
               author = tempAuthor;
-              if ((data['image_url']?.toString() ?? '').isNotEmpty)
+              if ((data['image_url']?.toString() ?? '').isNotEmpty) {
                 imageUrl = data['image_url'];
+              }
               audioUrl = data['audio_url'] ?? '';
               views = data['views'] != null ? data['views'].toString() : '0';
               pdfUrl = data['pdf_url'] ?? data['lyrics_pdf'];
@@ -310,8 +319,9 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
         // Stop any playing noha audio before playing marsiya
         coordPlayerPlayback(false);
 
-        if (_player.processingState == ProcessingState.idle)
+        if (_player.processingState == ProcessingState.idle) {
           await _setupAudio();
+        }
         await _player.play();
         if (mounted) setState(() => isWaiting = true);
       }
@@ -324,7 +334,6 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
       await _player.seek(_position + const Duration(seconds: 10));
   Future<void> _seekBackward() async =>
       await _player.seek(_position - const Duration(seconds: 10));
-  void _toggleLoop() => setState(() => isLoop = !isLoop);
   String _formatDuration(Duration d) =>
       "${d.inMinutes.remainder(60).toString().padLeft(2, '0')}:${d.inSeconds.remainder(60).toString().padLeft(2, '0')}";
 
@@ -415,10 +424,7 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
     child: Align(
       alignment: Alignment.centerLeft,
       child: IconButton(
-        icon: Icon(
-          Icons.arrow_back,
-          color: Theme.of(context).colorScheme.primary,
-        ),
+        icon: const Icon(IconlyLight.arrow_left_2, color: Color(0xFF1A8754)),
         onPressed: () => Navigator.pop(context),
       ),
     ),
@@ -448,16 +454,19 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
         ),
         labelColor: Colors.white,
         unselectedLabelColor: Colors.grey.shade800,
-        tabs: const [
+        tabs: [
           Tab(
             icon: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.music_note, size: 18),
-                SizedBox(width: 8),
+                const Icon(IconlyLight.voice, size: 18),
+                const SizedBox(width: 8),
                 Text(
                   "Audio",
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -466,11 +475,14 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
             icon: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.description, size: 18),
-                SizedBox(width: 8),
+                const Icon(IconlyLight.document, size: 18),
+                const SizedBox(width: 8),
                 Text(
                   "Lyrics",
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -487,14 +499,14 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.error_outline,
+            IconlyLight.danger,
             color: Theme.of(context).colorScheme.primary,
             size: 60,
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             "Something went wrong",
-            style: TextStyle(
+            style: GoogleFonts.poppins(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.black,
@@ -503,7 +515,7 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
           const SizedBox(height: 12),
           Text(
             errorMsg,
-            style: const TextStyle(color: Colors.grey, fontSize: 16),
+            style: GoogleFonts.poppins(color: Colors.grey, fontSize: 16),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
@@ -517,7 +529,10 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
               await _setupAudio();
             },
             icon: const Icon(Icons.refresh),
-            label: const Text("Try Again"),
+            label: Text(
+              "Try Again",
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
@@ -526,79 +541,153 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
 
   Widget _audioPlayerTab(BuildContext context) => Column(
     children: [
-      const SizedBox(height: 20),
-      Container(
-        width: 240,
-        height: 240,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF1A8754).withOpacity(0.15),
-              blurRadius: 25,
-              spreadRadius: 2,
-              offset: const Offset(0, 8),
-            ),
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              spreadRadius: 1,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: CachedNetworkImage(
-            imageUrl: imageUrl,
-            width: 240,
-            height: 240,
-            fit: BoxFit.cover,
-            placeholder:
-                (context, url) =>
-                    const Center(child: CircularProgressIndicator()),
-            errorWidget:
-                (context, url, error) => Container(
-                  color: Colors.grey[200],
-                  child: const Icon(
-                    Icons.image_not_supported,
-                    size: 60,
-                    color: Colors.black54,
+      const SizedBox(height: 16),
+      Hero(
+        tag: 'marsiya_art_${widget.audioId}',
+        child: Container(
+          width: 260,
+          height: 260,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(25),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF1A8754).withOpacity(0.2),
+                blurRadius: 25,
+                spreadRadius: 4,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(25),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      fit: BoxFit.cover,
+                      placeholder:
+                          (context, url) => Container(
+                            color: Colors.grey.shade100,
+                            child: const Center(
+                              child: CircularProgressIndicator(
+                                color: Color(0xFF1A8754),
+                                strokeWidth: 2,
+                              ),
+                            ),
+                          ),
+                      errorWidget:
+                          (context, url, error) => Container(
+                            color: Colors.grey.shade100,
+                            child: const Icon(
+                              IconlyLight.image,
+                              size: 50,
+                              color: Colors.black54,
+                            ),
+                          ),
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withOpacity(0.3),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                bottom: 12,
+                right: 12,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        IconlyLight.voice,
+                        size: 16,
+                        color: const Color(0xFF1A8754),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        "Marsiya",
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF1A8754),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+              ),
+            ],
           ),
         ),
       ),
       const Spacer(),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+      Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              spreadRadius: 1,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _infoChip(Icons.visibility_outlined, "${views.toString()} views"),
-            _infoChip(Icons.calendar_today_outlined, dateUploaded),
+            _infoChip(IconlyLight.show, "${views.toString()} views"),
+            _infoChip(IconlyLight.calendar, dateUploaded),
           ],
         ),
       ),
-      const SizedBox(height: 20),
+      const SizedBox(height: 16),
     ],
   );
 
   Widget _infoChip(IconData icon, String text) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
     decoration: BoxDecoration(
-      color: Colors.grey.shade100,
+      color: Colors.grey.shade50,
       borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.grey.shade200),
     ),
     child: Row(
       children: [
-        Icon(icon, size: 14, color: Colors.grey.shade600),
+        Icon(icon, size: 14, color: const Color(0xFF1A8754)),
         const SizedBox(width: 4),
         Text(
           text,
-          style: TextStyle(
+          style: GoogleFonts.poppins(
             fontSize: 12,
-            color: Colors.grey.shade600,
+            color: Colors.grey.shade700,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -611,23 +700,31 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
     double sliderValue,
     double sliderMax,
   ) => Container(
-    color: Colors.white,
-    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.04),
+          blurRadius: 15,
+          spreadRadius: 3,
+          offset: const Offset(0, -3),
+        ),
+      ],
+    ),
+    padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         _titleAuthor(),
         SliderTheme(
           data: SliderThemeData(
-            trackHeight: 5,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
-            activeTrackColor: Theme.of(context).colorScheme.primary,
+            trackHeight: 3,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+            activeTrackColor: const Color(0xFF1A8754),
             inactiveTrackColor: Colors.grey.shade200,
-            thumbColor: Theme.of(context).colorScheme.primary,
-            overlayColor: Theme.of(
-              context,
-            ).colorScheme.primary.withOpacity(0.2),
+            thumbColor: const Color(0xFF1A8754),
+            overlayColor: const Color(0xFF1A8754).withOpacity(0.2),
           ),
           child: Column(
             children: [
@@ -642,22 +739,22 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
                 },
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       _formatDuration(_position),
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
                         color: Colors.grey.shade600,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                     Text(
                       _formatDuration(_duration),
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
                         color: Colors.grey.shade600,
                         fontWeight: FontWeight.w500,
                       ),
@@ -668,24 +765,25 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
             ],
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            // Skip Previous Button
-            _ctrlBtn(Icons.skip_previous, _playPrevious, size: 26),
-            // Seek Backward Button
-            _ctrlBtn(Icons.replay_10_rounded, _seekBackward, size: 26),
-            // Play/Pause Button
+            _ctrlBtn(IconlyLight.arrow_left_2, _playPrevious, size: 24),
+            _ctrlBtn(IconlyLight.arrow_left, _seekBackward, size: 24),
             Container(
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF1A8754), Color(0xFF0D7148)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF1A8754).withOpacity(0.3),
+                    color: const Color(0xFF1A8754).withOpacity(0.25),
                     blurRadius: 12,
                     spreadRadius: 2,
                     offset: const Offset(0, 4),
@@ -718,20 +816,17 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
                         ),
                       ),
             ),
-            // Seek Forward Button
-            _ctrlBtn(Icons.forward_10_rounded, _seekForward, size: 26),
-            // Skip Next Button
-            _ctrlBtn(Icons.skip_next, _playNext, size: 26),
+            _ctrlBtn(IconlyLight.arrow_right, _seekForward, size: 24),
+            _ctrlBtn(IconlyLight.arrow_right_2, _playNext, size: 24),
           ],
         ),
-        const SizedBox(height: 12),
       ],
     ),
   );
 
   Widget _titleAuthor() => Container(
-    padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
-    margin: const EdgeInsets.only(bottom: 8),
+    padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+    margin: const EdgeInsets.only(bottom: 4),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -740,8 +835,8 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
               height: 28,
               child: Marquee(
                 text: title,
-                style: const TextStyle(
-                  fontSize: 22,
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.black,
                 ),
@@ -757,34 +852,43 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
             )
             : Text(
               title,
-              style: const TextStyle(
-                fontSize: 22,
+              style: GoogleFonts.poppins(
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
               ),
             ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            const Text(
-              "zakir:",
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-                fontWeight: FontWeight.w600,
-                fontStyle: FontStyle.italic,
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "zakir:",
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w600,
+                  fontStyle: FontStyle.italic,
+                ),
               ),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              author.isNotEmpty ? author : "Unknown Artist",
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.black,
-                fontWeight: FontWeight.w600,
+              const SizedBox(width: 4),
+              Text(
+                author.isNotEmpty ? author : "Unknown Artist",
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  color: const Color(0xFF1A8754),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     ),
@@ -795,15 +899,24 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
     VoidCallback onPressed, {
     required double size,
     Color? color,
-  }) => IconButton(
-    icon: Icon(icon, color: color ?? Colors.black, size: size),
-    onPressed: onPressed,
+  }) => Container(
+    decoration: BoxDecoration(
+      color: Colors.grey.shade50,
+      shape: BoxShape.circle,
+      border: Border.all(color: Colors.grey.shade200),
+    ),
+    child: IconButton(
+      icon: Icon(icon, color: color ?? const Color(0xFF1A8754), size: size),
+      onPressed: onPressed,
+      padding: const EdgeInsets.all(8),
+      constraints: const BoxConstraints(),
+    ),
   );
 }
 
 class LyricsTab extends StatefulWidget {
   final String? pdfUrl;
-  const LyricsTab({Key? key, this.pdfUrl}) : super(key: key);
+  const LyricsTab({super.key, this.pdfUrl});
   @override
   State<LyricsTab> createState() => _LyricsTabState();
 }
@@ -980,8 +1093,7 @@ class _LyricsTabState extends State<LyricsTab>
 class FullScreenPdfViewer extends StatelessWidget {
   final String pdfPath;
 
-  const FullScreenPdfViewer({Key? key, required this.pdfPath})
-    : super(key: key);
+  const FullScreenPdfViewer({super.key, required this.pdfPath});
 
   @override
   Widget build(BuildContext context) {

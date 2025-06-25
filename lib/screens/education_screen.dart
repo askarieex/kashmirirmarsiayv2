@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:iconly/iconly.dart';
 
 class EducationScreen extends StatelessWidget {
   const EducationScreen({super.key});
@@ -10,7 +11,7 @@ class EducationScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           'Education',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.nunitoSans(
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
@@ -53,14 +54,14 @@ class EducationScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     const Icon(
-                      Icons.school,
-                      size: 80,
+                      IconlyLight.time_square,
+                      size: 50,
                       color: Color(0xFF00875A),
                     ),
                     const SizedBox(height: 20),
                     Text(
                       'COMING SOON',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.nunitoSans(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: const Color(0xFF00875A),
@@ -82,7 +83,7 @@ class EducationScreen extends StatelessWidget {
                       child: Text(
                         'Our educational content is under development. We\'re working hard to bring you valuable resources soon!',
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.nunitoSans(
                           fontSize: 16,
                           color: Colors.grey[700],
                         ),

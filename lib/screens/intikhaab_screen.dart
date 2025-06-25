@@ -7,11 +7,13 @@ import 'package:share_plus/share_plus.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:iconly/iconly.dart';
 
 class IntikhaabScreen extends StatefulWidget {
   const IntikhaabScreen({super.key});
   static const Color accentTeal = Color(0xFF008F41);
-  static const Color bgColor = Color(0xFFF5F7FA);
+  static const Color bgColor = Color(0xFFF2F7F7);
   @override
   State<IntikhaabScreen> createState() => _IntikhaabScreenState();
 }
@@ -179,16 +181,23 @@ class _IntikhaabScreenState extends State<IntikhaabScreen>
         controller: _searchController,
         decoration: InputDecoration(
           hintText: 'Search by title, subtitle or author...',
+          hintStyle: GoogleFonts.nunitoSans(
+            color: Colors.grey.shade400,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
           prefixIcon: const Icon(
-            Icons.search,
+            IconlyLight.search,
             color: IntikhaabScreen.accentTeal,
+            size: 22,
           ),
           suffixIcon:
               _searchQuery.isNotEmpty
                   ? IconButton(
                     icon: const Icon(
-                      Icons.clear,
+                      IconlyBold.close_square,
                       color: IntikhaabScreen.accentTeal,
+                      size: 20,
                     ),
                     onPressed: () {
                       _searchController.clear();
@@ -205,20 +214,25 @@ class _IntikhaabScreenState extends State<IntikhaabScreen>
             horizontal: 20,
           ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(20),
             borderSide: BorderSide.none,
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(20),
             borderSide: BorderSide(color: Colors.grey.shade200),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(20),
             borderSide: const BorderSide(
               color: IntikhaabScreen.accentTeal,
               width: 1.5,
             ),
           ),
+        ),
+        style: GoogleFonts.nunitoSans(
+          color: Colors.grey.shade800,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );
@@ -333,6 +347,10 @@ class _IntikhaabScreenState extends State<IntikhaabScreen>
             offset: const Offset(0, 4),
           ),
         ],
+        border: Border.all(
+          color: IntikhaabScreen.accentTeal.withOpacity(0.05),
+          width: 1,
+        ),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
@@ -343,7 +361,7 @@ class _IntikhaabScreenState extends State<IntikhaabScreen>
             splashColor: IntikhaabScreen.accentTeal.withOpacity(0.1),
             highlightColor: IntikhaabScreen.accentTeal.withOpacity(0.05),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -351,8 +369,8 @@ class _IntikhaabScreenState extends State<IntikhaabScreen>
                   Hero(
                     tag: 'pdf_icon_${item['id'] ?? DateTime.now().toString()}',
                     child: Container(
-                      width: 60,
-                      height: 60,
+                      width: 48,
+                      height: 48,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
@@ -365,18 +383,22 @@ class _IntikhaabScreenState extends State<IntikhaabScreen>
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: IntikhaabScreen.accentTeal.withOpacity(0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
+                            color: IntikhaabScreen.accentTeal.withOpacity(0.25),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
                       child: const Center(
-                        child: Icon(Icons.star, color: Colors.white, size: 30),
+                        child: Icon(
+                          IconlyLight.document,
+                          color: Colors.white,
+                          size: 22,
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
                   // Content section
                   Expanded(
                     child: Column(
@@ -384,11 +406,11 @@ class _IntikhaabScreenState extends State<IntikhaabScreen>
                       children: [
                         Text(
                           displayTitle,
-                          style: const TextStyle(
+                          style: GoogleFonts.notoNastaliqUrdu(
                             fontWeight: FontWeight.bold,
-                            fontSize: 18,
+                            fontSize: 16,
                             color: Color(0xFF2D3748),
-                            height: 1.3,
+                            height: 1.8,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -397,28 +419,30 @@ class _IntikhaabScreenState extends State<IntikhaabScreen>
                         if (displaySubtitle.isNotEmpty)
                           Text(
                             displaySubtitle,
-                            style: TextStyle(
+                            style: GoogleFonts.nunitoSans(
                               color: Colors.grey.shade600,
-                              fontSize: 14,
+                              fontSize: 13,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             textDirection: TextDirection.rtl,
                           ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         // Author section with icon
                         Row(
                           children: [
-                            const Icon(
-                              Icons.person,
-                              size: 16,
+                            Icon(
+                              IconlyLight.profile,
+                              size: 14,
                               color: IntikhaabScreen.accentTeal,
                             ),
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
                                 "By $displayAuthor",
-                                style: TextStyle(
+                                style: GoogleFonts.nunitoSans(
                                   color: Colors.grey.shade700,
-                                  fontSize: 14,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w500,
                                 ),
                                 overflow: TextOverflow.ellipsis,
@@ -426,36 +450,26 @@ class _IntikhaabScreenState extends State<IntikhaabScreen>
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
-                        // Stats row
+                        const SizedBox(height: 8),
+                        // Stats row with chips
                         Row(
                           children: [
-                            const Icon(
-                              Icons.access_time,
-                              size: 16,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
+                            _buildInfoChip(
+                              IconlyLight.time_circle,
                               duration,
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 13,
-                              ),
+                              const Color.fromARGB(255, 22, 44, 238),
                             ),
-                            const SizedBox(width: 16),
-                            const Icon(
-                              Icons.visibility_outlined,
-                              size: 16,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
+                            const SizedBox(width: 8),
+                            _buildInfoChip(
+                              IconlyLight.show,
                               views,
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 13,
-                              ),
+                              const Color.fromARGB(255, 0, 0, 0),
+                            ),
+                            const SizedBox(width: 8),
+                            _buildInfoChip(
+                              IconlyLight.calendar,
+                              formattedDate,
+                              const Color.fromARGB(255, 222, 70, 194),
                             ),
                           ],
                         ),
@@ -464,14 +478,18 @@ class _IntikhaabScreenState extends State<IntikhaabScreen>
                   ),
                   // Arrow icon
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: 34,
+                    height: 34,
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(12),
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: IntikhaabScreen.accentTeal.withOpacity(0.1),
+                        width: 1,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.play_arrow_rounded,
+                    child: Icon(
+                      IconlyLight.arrow_right_circle,
                       color: IntikhaabScreen.accentTeal,
                       size: 24,
                     ),
@@ -481,6 +499,32 @@ class _IntikhaabScreenState extends State<IntikhaabScreen>
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildInfoChip(IconData icon, String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: GoogleFonts.poppins(
+              color: color.withOpacity(0.8),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }
@@ -666,7 +710,7 @@ class _IntikhaabScreenState extends State<IntikhaabScreen>
           unselectedLabelColor: Colors.grey.shade600,
           labelStyle: const TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 16,
+            fontSize: 13,
           ),
           tabs: const [Tab(text: 'All PDFs'), Tab(text: 'Recently Uploaded')],
         ),
@@ -765,8 +809,7 @@ class PdfViewerScreen extends StatefulWidget {
   final String pdfUrl;
   final String title;
 
-  const PdfViewerScreen({Key? key, required this.pdfUrl, required this.title})
-    : super(key: key);
+  const PdfViewerScreen({super.key, required this.pdfUrl, required this.title});
 
   @override
   State<PdfViewerScreen> createState() => _PdfViewerScreenState();

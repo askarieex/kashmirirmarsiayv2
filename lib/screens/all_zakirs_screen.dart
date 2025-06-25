@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:iconly/iconly.dart';
 import 'view_profile_screen.dart';
 
 class ZakirProfile {
@@ -136,7 +137,7 @@ class _AllZakirsScreenState extends State<AllZakirsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9F9),
+      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
       appBar: _buildAppBar(),
       body: _buildBody(),
     );
@@ -152,7 +153,7 @@ class _AllZakirsScreenState extends State<AllZakirsScreen> {
               ? _buildSearchField()
               : Text(
                 'Zakirs',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.nunitoSans(
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
@@ -160,17 +161,20 @@ class _AllZakirsScreenState extends State<AllZakirsScreen> {
       leading:
           _isSearchActive
               ? IconButton(
-                icon: const Icon(Icons.arrow_back, color: Color(0xFF00875A)),
+                icon: const Icon(
+                  IconlyLight.arrow_left_2,
+                  color: Color(0xFF00875A),
+                ),
                 onPressed: _toggleSearch,
               )
               : IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                icon: const Icon(IconlyLight.arrow_left, color: Colors.white),
                 onPressed: () => Navigator.pop(context),
               ),
       actions: [
         if (!_isSearchActive)
           IconButton(
-            icon: const Icon(Icons.search, color: Colors.white),
+            icon: const Icon(IconlyLight.search, color: Colors.white),
             onPressed: _toggleSearch,
           ),
       ],
@@ -183,10 +187,13 @@ class _AllZakirsScreenState extends State<AllZakirsScreen> {
       focusNode: _searchFocusNode,
       decoration: InputDecoration(
         hintText: 'Search zakirs...',
-        hintStyle: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 16),
+        hintStyle: GoogleFonts.nunitoSans(
+          color: Colors.grey[400],
+          fontSize: 16,
+        ),
         border: InputBorder.none,
         prefixIcon: Icon(
-          Icons.search,
+          IconlyLight.search,
           color: const Color(0xFF00875A).withOpacity(0.7),
         ),
         suffixIcon:
@@ -206,9 +213,15 @@ class _AllZakirsScreenState extends State<AllZakirsScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00875A)),
+      return SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.8,
+          child: const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00875A)),
+            ),
+          ),
         ),
       );
     }
@@ -305,7 +318,7 @@ class _AllZakirsScreenState extends State<AllZakirsScreen> {
                 children: [
                   Text(
                     'All Zakirs',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.nunitoSans(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: const Color(0xFF333333),
@@ -323,7 +336,7 @@ class _AllZakirsScreenState extends State<AllZakirsScreen> {
                     ),
                     child: Text(
                       '${_filteredZakirs.length}',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.nunitoSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: Colors.white,
@@ -409,7 +422,7 @@ class _AllZakirsScreenState extends State<AllZakirsScreen> {
                           ),
                       errorWidget:
                           (context, url, error) => const Icon(
-                            Icons.person,
+                            IconlyLight.profile,
                             size: 60,
                             color: Color(0xFFCCCCCC),
                           ),
@@ -426,7 +439,7 @@ class _AllZakirsScreenState extends State<AllZakirsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(
                 zakir.name,
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.nunitoSans(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: const Color(0xFF333333),
@@ -445,7 +458,7 @@ class _AllZakirsScreenState extends State<AllZakirsScreen> {
               ),
               child: Text(
                 'Zakir',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.nunitoSans(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                   color: const Color(0xFF00875A),

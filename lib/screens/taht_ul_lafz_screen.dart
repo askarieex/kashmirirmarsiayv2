@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:iconly/iconly.dart';
+import 'dart:ui' as ui;
 
 class TahtUlLafzScreen extends StatelessWidget {
   const TahtUlLafzScreen({super.key});
 
   static const Color accentTeal = Color(0xFF008F41);
+  static const Color backgroundColor = Color(0xFFF2F7F7);
 
   final List<Map<String, String>> marsiyaList = const [
     {
@@ -29,20 +33,20 @@ class TahtUlLafzScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.teal.shade50,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.teal.shade50,
-        title: const Text(
+        backgroundColor: backgroundColor,
+        title: Text(
           'تحت اللفظ - Taht ul Lafz',
-          style: TextStyle(
+          style: GoogleFonts.nunitoSans(
             color: accentTeal,
             fontWeight: FontWeight.bold,
-            fontSize: 24,
+            fontSize: 20,
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: accentTeal, size: 28),
+          icon: const Icon(IconlyLight.arrow_left, color: accentTeal, size: 26),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -67,75 +71,148 @@ class TahtUlLafzScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.shade300,
-            blurRadius: 6,
-            offset: const Offset(2, 2),
+            color: accentTeal.withOpacity(0.08),
+            blurRadius: 8,
+            spreadRadius: 0,
+            offset: const Offset(0, 2),
           ),
         ],
+        border: Border.all(color: accentTeal.withOpacity(0.05), width: 1),
       ),
-      child: ListTile(
-        leading: Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [accentTeal, accentTeal.withOpacity(0.8)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(
-            Icons.picture_as_pdf,
-            color: Colors.white,
-            size: 24,
-          ),
-        ),
-        title: Text(
-          item['title'] ?? '',
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-          textDirection: TextDirection.rtl,
-        ),
-        subtitle: Column(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 8),
-            Text(
-              'By ${item['author'] ?? ''}',
-              style: TextStyle(color: Colors.grey[700], fontSize: 14),
+            // Leading Icon Container
+            Container(
+              width: 45,
+              height: 45,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [accentTeal, accentTeal.withOpacity(0.8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: accentTeal.withOpacity(0.2),
+                    blurRadius: 6,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                IconlyLight.document,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.access_time, size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(
-                  item['duration'] ?? '',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                ),
-                const SizedBox(width: 16),
-                const Icon(
-                  Icons.visibility_outlined,
-                  size: 16,
-                  color: Colors.grey,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  item['views'] ?? '',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                ),
-              ],
+            const SizedBox(width: 12),
+            // Content Column
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title with elegant text styling
+                  Text(
+                    item['title'] ?? '',
+                    style: GoogleFonts.notoNastaliqUrdu(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      height: 1.9,
+                    ),
+                    textDirection: ui.TextDirection.rtl,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  // Author
+                  Text(
+                    'By ${item['author'] ?? ''}',
+                    style: GoogleFonts.nunitoSans(
+                      color: Colors.teal.shade700,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  // Stats row with smaller icons
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildDetailChip(
+                        IconlyLight.time_circle,
+                        item['duration'] ?? '',
+                        Colors.teal.shade600,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildDetailChip(
+                        IconlyLight.show,
+                        item['views'] ?? '',
+                        Colors.teal.shade600,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildDetailChip(
+                        IconlyLight.document,
+                        item['language'] ?? '',
+                        Colors.teal.shade600,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // Play Button
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: accentTeal.withOpacity(0.15),
+                    blurRadius: 4,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(IconlyLight.play, color: accentTeal, size: 20),
             ),
           ],
         ),
-        trailing: IconButton(
-          icon: const Icon(
-            Icons.play_arrow_rounded,
-            color: accentTeal,
-            size: 32,
+      ),
+    );
+  }
+
+  Widget _buildDetailChip(IconData icon, String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: GoogleFonts.poppins(
+              color: color.withOpacity(0.8),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
-          onPressed: () {},
-        ),
+        ],
       ),
     );
   }
