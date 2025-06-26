@@ -2627,16 +2627,14 @@ class _HomeScreenState extends State<HomeScreen>
         );
       }
 
-      // If any category is empty, use profiles from the other category as fallback
-      if (profiles['Zakir']!.isEmpty && profiles['Noha Khan']!.isNotEmpty) {
-        print('No Zakirs found, using some Noha Khans as fallback');
-        profiles['Zakir'] = [...profiles['Noha Khan']!.take(3)];
-      }
+      // ✅ FIXED: Remove problematic fallback logic to maintain proper categorization
+      // Each artist should only appear in their correct category
+      // Empty categories will show "No content available" message instead of wrong data
 
-      if (profiles['Noha Khan']!.isEmpty && profiles['Zakir']!.isNotEmpty) {
-        print('No Noha Khans found, using some Zakirs as fallback');
-        profiles['Noha Khan'] = [...profiles['Zakir']!.take(3)];
-      }
+      // Categories remain strictly separated - no cross-mixing
+      print(
+        'Final counts: ${profiles['Zakir']!.length} Zakirs, ${profiles['Noha Khan']!.length} Noha Khans',
+      );
 
       // Combined profiles for "Both" category if needed elsewhere
       profiles['Both'] = [...profiles['Zakir']!, ...profiles['Noha Khan']!];

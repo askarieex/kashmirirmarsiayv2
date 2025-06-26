@@ -18,13 +18,16 @@ class ArtistItem {
   });
 
   factory ArtistItem.fromJson(Map<String, dynamic> json) {
+    // Handle different API response formats
+    String imageUrl = json['imageUrl'] ?? json['profile_image'] ?? '';
+
     return ArtistItem(
       id: json['id']?.toString() ?? '',
       name: json['name'] ?? '',
-      imageUrl: json['profile_image'] ?? '',
+      imageUrl: imageUrl,
       category: json['category'] ?? '',
       description: json['description'],
-      profileImage: json['profile_image'] ?? '',
+      profileImage: imageUrl, // Use the same resolved image URL
       totalViews: int.tryParse(json['total_views']?.toString() ?? '0') ?? 0,
     );
   }

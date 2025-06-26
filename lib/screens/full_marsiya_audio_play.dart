@@ -139,15 +139,20 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
     );
     _lyricsTab = const Center(child: CircularProgressIndicator());
     fetchAudioData().then((_) {
-      _setupAudio();
-      fetchRecommendations();
+      print("fetchAudioData completed, calling _setupAudio");
+      _setupAudio().then((_) {
+        print("_setupAudio completed, calling fetchRecommendations");
+        fetchRecommendations();
+      });
     });
-    _player.durationStream.listen(
-      (d) => mounted ? setState(() => _duration = d ?? Duration.zero) : null,
-    );
-    _player.positionStream.listen(
-      (p) => mounted ? setState(() => _position = p) : null,
-    );
+    _player.durationStream.listen((d) {
+      print("Duration changed: ${d?.toString() ?? 'null'}");
+      if (mounted) setState(() => _duration = d ?? Duration.zero);
+    });
+
+    _player.positionStream.listen((p) {
+      if (mounted) setState(() => _position = p);
+    });
     _player.playerStateStream.listen((state) {
       if (!mounted) return;
       setState(() {
@@ -186,27 +191,46 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
     final currentSource = _player.audioSource;
     if (currentSource is UriAudioSource) {
       final currentTag = currentSource.tag as Map<String, dynamic>?;
-      if (currentTag?['audioId'] == widget.audioId) return;
+      if (currentTag?['audioId'] == widget.audioId) {
+        print("Audio already loaded for ID: ${widget.audioId}");
+        return;
+      }
     }
+
+    print("Setting up audio for ID: ${widget.audioId}");
+    print("Audio URL: $audioUrl");
+
     if (audioUrl.isNotEmpty) {
       try {
         // Ensure Noha player is stopped before playing Marsiya
         coordPlayerPlayback(false);
 
+        print("Loading audio source: $audioUrl");
         await _player.setAudioSource(
           AudioSource.uri(
             Uri.parse(audioUrl),
             tag: {'audioId': widget.audioId.toString()},
           ),
         );
+
+        print("Audio source loaded successfully");
         await (await AudioSession.instance).setActive(true);
+        print("Audio session activated");
+
         if (widget.autoPlay) {
+          print("Auto-playing audio");
           await _player.play();
           if (mounted) setState(() => isWaiting = true);
         }
+
+        print("Audio setup completed");
       } catch (e) {
+        print("Audio setup error: $e");
         if (mounted) setState(() => errorMsg = "Audio Setup Error: $e");
       }
+    } else {
+      print("Audio URL is empty!");
+      if (mounted) setState(() => errorMsg = "No audio URL provided");
     }
   }
 
@@ -249,6 +273,12 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
               durationStr = data['duration'] ?? '';
               isLoading = false;
             });
+
+            print("Fetched audio data:");
+            print("Title: $title");
+            print("Author: $author");
+            print("Audio URL: $audioUrl");
+            print("Duration: $durationStr");
 
             // Update global variables for the mini player.
             globalTrackTitle = title;
@@ -310,22 +340,33 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
   }
 
   Future<void> _togglePlayPause() async {
+    print("Toggle play/pause called. Current state: isPlaying=$isPlaying");
+    print("Player state: ${_player.processingState}");
+    print("Audio source loaded: ${_player.audioSource != null}");
+
     try {
       await (await AudioSession.instance).setActive(true);
       if (isPlaying) {
+        print("Pausing audio");
         await _player.pause();
         if (mounted) setState(() => isWaiting = false);
       } else {
+        print("Starting audio playback");
         // Stop any playing noha audio before playing marsiya
         coordPlayerPlayback(false);
 
         if (_player.processingState == ProcessingState.idle) {
+          print("Player is idle, setting up audio first");
           await _setupAudio();
         }
+
+        print("Calling player.play()");
         await _player.play();
         if (mounted) setState(() => isWaiting = true);
+        print("Play() called successfully");
       }
     } catch (e) {
+      print("Playback error: $e");
       if (mounted) setState(() => errorMsg = "Playback error: $e");
     }
   }

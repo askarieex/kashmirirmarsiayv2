@@ -28,9 +28,14 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
   List<dynamic> _noha = [];
   int _totalContentCount = 0;
 
-  late TabController _tabController;
+  TabController? _tabController;
   late ScrollController _scrollController;
   bool _showTitle = false;
+
+  // Dynamic tab configuration
+  List<String> _availableTabs = [];
+  bool _showMarsiyaTab = false;
+  bool _showNohaTab = false;
 
   // Enhanced color palette
   static const Color primaryColor = Color(0xFF1A8754);
@@ -44,7 +49,6 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _scrollController = ScrollController();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -53,13 +57,49 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
       }
     });
 
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
+    _fetchAuthorContent();
+  }
+
+  void _configureTabs() {
+    final category = _profile?.category?.toLowerCase() ?? '';
+
+    _availableTabs.clear();
+    _showMarsiyaTab = false;
+    _showNohaTab = false;
+
+    // Determine which tabs to show based on category
+    if (category.contains('both')) {
+      _availableTabs = ['Marsiya', 'Noha'];
+      _showMarsiyaTab = true;
+      _showNohaTab = true;
+    } else if (category.contains('zakir')) {
+      _availableTabs = ['Marsiya'];
+      _showMarsiyaTab = true;
+      _showNohaTab = false;
+    } else if (category.contains('noha')) {
+      _availableTabs = ['Noha'];
+      _showMarsiyaTab = false;
+      _showNohaTab = true;
+    } else {
+      // Default: show both if category is unclear
+      _availableTabs = ['Marsiya', 'Noha'];
+      _showMarsiyaTab = true;
+      _showNohaTab = true;
+    }
+
+    // Dispose old controller if exists
+    _tabController?.dispose();
+
+    // Create new controller with correct number of tabs
+    _tabController = TabController(length: _availableTabs.length, vsync: this);
+
+    _tabController?.addListener(() {
+      if (!(_tabController?.indexIsChanging ?? true)) {
         setState(() {});
       }
     });
 
-    _fetchAuthorContent();
+    print('Configured tabs for ${_profile?.name}: $_availableTabs');
   }
 
   void _updateScrollPosition() {
@@ -72,7 +112,7 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabController?.dispose();
     _scrollController.removeListener(_updateScrollPosition);
     _scrollController.dispose();
     super.dispose();
@@ -104,8 +144,13 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
             _isLoading = false;
           });
 
-          if (_profile?.category == 'Noha Khan' && _noha.isNotEmpty) {
-            _tabController.animateTo(1);
+          // Configure tabs based on artist category
+          _configureTabs();
+
+          // Auto-navigate to appropriate tab
+          if (_profile?.category?.toLowerCase().contains('noha') == true &&
+              _noha.isNotEmpty) {
+            _tabController?.animateTo(_showMarsiyaTab ? 1 : 0);
           }
         } else {
           setState(() => _isLoading = false);
@@ -333,12 +378,21 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
                                               ),
                                             ),
                                           ),
-                                      errorWidget:
-                                          (context, url, error) => const Icon(
+                                      errorWidget: (context, url, error) {
+                                        // Debug: Print image loading error
+                                        print(
+                                          'Profile image loading error: $error',
+                                        );
+                                        print('Image URL: $url');
+                                        return Container(
+                                          color: Colors.grey.shade100,
+                                          child: const Icon(
                                             IconlyLight.profile,
                                             size: 50,
                                             color: Colors.grey,
                                           ),
+                                        );
+                                      },
                                     ),
                                   ),
                                 ),
@@ -383,23 +437,7 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
                           const SizedBox(height: 20),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _buildStatItem(
-                                IconlyLight.voice,
-                                '${_marsiya.length}',
-                                'Marsiya',
-                              ),
-                              _buildStatItem(
-                                IconlyLight.voice,
-                                '${_noha.length}',
-                                'Noha',
-                              ),
-                              _buildStatItem(
-                                IconlyLight.show,
-                                '${_profile?.totalViews ?? 0}',
-                                'Views',
-                              ),
-                            ],
+                            children: _buildStatItems(),
                           ),
                         ],
                       ),
@@ -424,66 +462,105 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
                     ),
                   ],
                 ),
-                child: TabBar(
-                  controller: _tabController,
-                  indicatorColor: primaryColor,
-                  indicatorWeight: 3,
-                  labelColor: primaryColor,
-                  unselectedLabelColor: textSecondaryColor,
-                  labelStyle: GoogleFonts.nunitoSans(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15,
-                  ),
-                  unselectedLabelStyle: GoogleFonts.nunitoSans(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 15,
-                  ),
-                  tabs: [
-                    Tab(
-                      icon: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(IconlyLight.voice, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Marsiya',
-                            style: GoogleFonts.nunitoSans(
-                              fontWeight: FontWeight.w600,
-                            ),
+                child:
+                    _tabController == null
+                        ? const SizedBox.shrink()
+                        : TabBar(
+                          controller: _tabController,
+                          indicatorColor: primaryColor,
+                          indicatorWeight: 3,
+                          labelColor: primaryColor,
+                          unselectedLabelColor: textSecondaryColor,
+                          labelStyle: GoogleFonts.nunitoSans(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
                           ),
-                        ],
-                      ),
-                    ),
-                    Tab(
-                      icon: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(IconlyLight.voice, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Noha',
-                            style: GoogleFonts.nunitoSans(
-                              fontWeight: FontWeight.w600,
-                            ),
+                          unselectedLabelStyle: GoogleFonts.nunitoSans(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 15,
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                          tabs:
+                              _availableTabs.map((tabName) {
+                                return Tab(
+                                  icon: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        tabName == 'Marsiya'
+                                            ? IconlyLight.document
+                                            : IconlyLight.voice,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        tabName,
+                                        style: GoogleFonts.nunitoSans(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                        ),
               ),
             ),
           ),
         ];
       },
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildContentList(_marsiya, true),
-          _buildContentList(_noha, false),
-        ],
-      ),
+      body:
+          _tabController == null
+              ? const Center(child: CircularProgressIndicator())
+              : TabBarView(
+                controller: _tabController,
+                children: _buildTabViews(),
+              ),
     );
+  }
+
+  List<Widget> _buildTabViews() {
+    List<Widget> tabViews = [];
+
+    for (String tabName in _availableTabs) {
+      if (tabName == 'Marsiya') {
+        tabViews.add(_buildContentList(_marsiya, true));
+      } else if (tabName == 'Noha') {
+        tabViews.add(_buildContentList(_noha, false));
+      }
+    }
+
+    return tabViews;
+  }
+
+  List<Widget> _buildStatItems() {
+    List<Widget> stats = [];
+
+    // Show stats based on available content and category
+    if (_showMarsiyaTab && _marsiya.isNotEmpty) {
+      stats.add(
+        _buildStatItem(IconlyLight.document, '${_marsiya.length}', 'Marsiya'),
+      );
+    }
+
+    if (_showNohaTab && _noha.isNotEmpty) {
+      stats.add(_buildStatItem(IconlyLight.voice, '${_noha.length}', 'Noha'));
+    }
+
+    // Always show total views
+    stats.add(
+      _buildStatItem(IconlyLight.show, '${_profile?.totalViews ?? 0}', 'Views'),
+    );
+
+    // If no content stats, show placeholders
+    if (stats.length == 1) {
+      // Only views stat
+      stats.insert(
+        0,
+        _buildStatItem(IconlyLight.folder, '${_totalContentCount}', 'Content'),
+      );
+    }
+
+    return stats;
   }
 
   Widget _buildStatItem(IconData icon, String value, String label) {
@@ -628,7 +705,11 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
                           fit: StackFit.expand,
                           children: [
                             CachedNetworkImage(
-                              imageUrl: item['image_url'] ?? '',
+                              imageUrl:
+                                  item['image_url'] ??
+                                  item['imageUrl'] ??
+                                  _profile?.profileImage ??
+                                  'https://algodream.in/admin/uploads/default_art.png',
                               fit: BoxFit.cover,
                               placeholder:
                                   (context, url) => Container(
@@ -640,15 +721,34 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
                                       ),
                                     ),
                                   ),
-                              errorWidget:
-                                  (context, url, error) => Container(
-                                    color: Colors.grey.shade100,
-                                    child: const Icon(
-                                      IconlyLight.image,
-                                      size: 30,
-                                      color: Colors.grey,
-                                    ),
+                              errorWidget: (context, url, error) {
+                                print('Content image loading error: $error');
+                                print('Image URL: $url');
+                                return Container(
+                                  color: primaryColor.withOpacity(0.1),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        isMarsiya
+                                            ? IconlyLight.document
+                                            : IconlyLight.voice,
+                                        size: 30,
+                                        color: primaryColor,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        isMarsiya ? 'Marsiya' : 'Noha',
+                                        style: GoogleFonts.nunitoSans(
+                                          fontSize: 10,
+                                          color: primaryColor,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
                                   ),
+                                );
+                              },
                             ),
                             Container(
                               decoration: BoxDecoration(
