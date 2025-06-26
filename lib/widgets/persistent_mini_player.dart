@@ -48,11 +48,12 @@ String globalTrackTitle = "Now Playing: Some Title";
 String globalArtistName = "zakir";
 String? globalImageUrl = 'https://algodream.in/admin/uploads/default_art.png';
 
-/// Global metadata variables for noha
-String globalNohaTitle = "Unknown Noha";
-String globalNohaArtistName = "Unknown Artist";
-String globalNohaImageUrl =
-    'https://algodream.in/admin/uploads/default_art.png';
+/// Global metadata variables for noha (using ValueNotifier for reactivity)
+ValueNotifier<String> globalNohaTitle = ValueNotifier("Unknown Noha");
+ValueNotifier<String> globalNohaArtistName = ValueNotifier("Unknown Artist");
+ValueNotifier<String> globalNohaImageUrl = ValueNotifier(
+  'https://algodream.in/admin/uploads/default_art.png',
+);
 
 // Reference to the navigator key defined in main.dart
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -109,11 +110,25 @@ class _PersistentMiniPlayerState extends State<PersistentMiniPlayer>
       _animationController.forward();
     }
 
+    // ✅ FIX: Add listeners to global ValueNotifiers for reactive updates
+    globalNohaTitle.addListener(_updateUI);
+    globalNohaArtistName.addListener(_updateUI);
+    globalNohaImageUrl.addListener(_updateUI);
+
     // Monitor both players to detect changes in active player
     _setupPlayerMonitoring();
 
     // Subscribe to the player's streams
     _setupPlayerListeners();
+  }
+
+  void _updateUI() {
+    if (mounted) {
+      setState(() {
+        // This will trigger a rebuild when global variables change
+        print("Mini-player rebuilding due to global variable change");
+      });
+    }
   }
 
   void _setupPlayerMonitoring() {
@@ -235,6 +250,12 @@ class _PersistentMiniPlayerState extends State<PersistentMiniPlayer>
     _marsiyaPlayerStateSubscription?.cancel();
     _nohaPlayerStateSubscription?.cancel();
     _animationController.dispose();
+
+    // ✅ FIX: Remove listeners to prevent memory leaks
+    globalNohaTitle.removeListener(_updateUI);
+    globalNohaArtistName.removeListener(_updateUI);
+    globalNohaImageUrl.removeListener(_updateUI);
+
     super.dispose();
   }
 
@@ -369,10 +390,12 @@ class _PersistentMiniPlayerState extends State<PersistentMiniPlayer>
     }
 
     // Get the appropriate title, artist, and image based on the active player
-    final title = _isNohaPlayerActive ? globalNohaTitle : globalTrackTitle;
+    final title =
+        _isNohaPlayerActive ? globalNohaTitle.value : globalTrackTitle;
     final artist =
-        _isNohaPlayerActive ? globalNohaArtistName : globalArtistName;
-    final imageUrl = _isNohaPlayerActive ? globalNohaImageUrl : globalImageUrl;
+        _isNohaPlayerActive ? globalNohaArtistName.value : globalArtistName;
+    final imageUrl =
+        _isNohaPlayerActive ? globalNohaImageUrl.value : globalImageUrl;
 
     return ValueListenableBuilder<bool>(
       valueListenable: showPersistentMiniPlayerNotifier,

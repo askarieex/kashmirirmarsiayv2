@@ -24,11 +24,12 @@ import 'marsiya_screen.dart';
 /// Global audio player instance to persist playback.
 final AudioPlayer globalNohaPlayer = AudioPlayer();
 
-// Global variables to hold current track info for the mini player
-String globalNohaTitle = "Unknown Noha";
-String globalNohaArtistName = "Unknown Artist";
-String globalNohaImageUrl =
-    'https://algodream.in/admin/uploads/default_art.png';
+// Global variables to hold current track info for the mini player (using ValueNotifier for reactivity)
+ValueNotifier<String> globalNohaTitle = ValueNotifier("Unknown Noha");
+ValueNotifier<String> globalNohaArtistName = ValueNotifier("Unknown Artist");
+ValueNotifier<String> globalNohaImageUrl = ValueNotifier(
+  'https://algodream.in/admin/uploads/default_art.png',
+);
 
 class FullNohaAudioPlay extends StatefulWidget {
   final String nohaId;
@@ -166,14 +167,25 @@ class _FullNohaAudioPlayState extends State<FullNohaAudioPlay>
         final jsonData = json.decode(res.body);
         if (jsonData['status'] == 'success') {
           final data = jsonData['data'];
-          String tempAuthor =
-              data['manual_author']?.toString().isNotEmpty == true
-                  ? data['manual_author']
-                  : data['author_name']?.toString().isNotEmpty == true
-                  ? data['author_name']
-                  : data['author_id'] != null
-                  ? await fetchAuthorName(data['author_id'])
-                  : 'Unknown Artist';
+          // ✅ FIX: Properly handle async author fetching
+          String tempAuthor = 'Unknown Artist';
+
+          if (data['manual_author']?.toString().isNotEmpty == true) {
+            tempAuthor = data['manual_author'];
+          } else if (data['author_name']?.toString().isNotEmpty == true) {
+            tempAuthor = data['author_name'];
+          } else if (data['author_id'] != null) {
+            // Fetch author name asynchronously
+            tempAuthor = await fetchAuthorName(data['author_id']);
+          }
+
+          print("Noha Data Debug:");
+          print("- Title: ${data['title']}");
+          print("- Manual Author: '${data['manual_author']}'");
+          print("- Author Name: '${data['author_name']}'");
+          print("- Author ID: ${data['author_id']}");
+          print("- Final Author: $tempAuthor");
+
           if (mounted) {
             setState(() {
               title = data['title'] ?? 'Audio';
@@ -195,10 +207,14 @@ class _FullNohaAudioPlayState extends State<FullNohaAudioPlay>
               isLoading = false;
             });
 
-            // Update global variables for the mini player.
-            globalNohaTitle = title;
-            globalNohaArtistName = author;
-            globalNohaImageUrl = imageUrl;
+            // ✅ FIX: Update globals AFTER proper values are set
+            globalNohaTitle.value = title;
+            globalNohaArtistName.value = author;
+            globalNohaImageUrl.value = imageUrl;
+
+            print("Updated global variables:");
+            print("- Global Title: ${globalNohaTitle.value}");
+            print("- Global Artist: ${globalNohaArtistName.value}");
 
             _lyricsTab = LyricsTab(pdfUrl: pdfUrl);
           }
