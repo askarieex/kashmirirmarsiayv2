@@ -291,9 +291,17 @@ class _FullNohaAudioPlayState extends State<FullNohaAudioPlay>
         if (mounted) setState(() => isWaiting = true);
 
         // ✅ Track view count when audio starts playing (only once per session)
+        print(
+          '🔍 View tracking check: _viewCounted=$_viewCounted, nohaId="${widget.nohaId}"',
+        );
         if (!_viewCounted && widget.nohaId.isNotEmpty) {
+          print('🎯 Starting view tracking for Noha nohaId: ${widget.nohaId}');
           _viewCounted = true;
           _trackNohaView();
+        } else {
+          print(
+            '❌ View tracking skipped: _viewCounted=$_viewCounted, nohaId="${widget.nohaId}"',
+          );
         }
       }
     } catch (e) {

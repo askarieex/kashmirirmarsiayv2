@@ -158,9 +158,17 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
           }
 
           // ✅ Track profile view when profile loads successfully (only once)
+          print(
+            '🔍 Profile view tracking check: _viewCounted=$_viewCounted, profileId="${widget.profileId}"',
+          );
           if (!_viewCounted) {
+            print(
+              '🎯 Starting profile view tracking for profileId: ${widget.profileId}',
+            );
             _viewCounted = true;
             _trackProfileView();
+          } else {
+            print('❌ Profile view tracking skipped: already counted');
           }
         } else {
           setState(() => _isLoading = false);
