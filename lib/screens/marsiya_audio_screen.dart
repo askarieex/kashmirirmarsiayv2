@@ -240,17 +240,29 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
     final Set<String> authorIdsToFetch = {};
 
     for (var item in items) {
-      if (item['author_id'].toString() == "1" &&
-          (item['manual_author'] == null ||
-              item['manual_author'].toString().isEmpty)) {
-        if (!_authorCache.containsKey("1")) {
-          authorIdsToFetch.add("1");
+      // Check if manual_author is empty and author_id exists
+      final authorId = item['author_id']?.toString();
+      final manualAuthor = item['manual_author']?.toString() ?? '';
+      final authorName = item['author_name']?.toString() ?? '';
+
+      if (authorId != null &&
+          authorId.isNotEmpty &&
+          authorId != 'null' &&
+          manualAuthor.isEmpty &&
+          authorName.isEmpty) {
+        // Need to fetch this author if not already cached
+        if (!_authorCache.containsKey(authorId)) {
+          authorIdsToFetch.add(authorId);
+          print('🔍 Need to fetch author for ID: $authorId');
         }
       }
     }
 
     // Batch fetch authors
     if (authorIdsToFetch.isNotEmpty) {
+      print(
+        '📡 Fetching ${authorIdsToFetch.length} authors: $authorIdsToFetch',
+      );
       for (final authorId in authorIdsToFetch) {
         await fetchAuthor(authorId);
       }
@@ -262,6 +274,8 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
         "https://algodream.in/admin/api/get_author.php?api_key=MOHAMMADASKERYMALIKFROMNOWLARI&author_id=$authorId";
 
     try {
+      print('🔄 Fetching author for ID: $authorId');
+
       // Check cache first
       final cacheKey = 'author_$authorId';
       final fileInfo = await _cacheManager.getFileFromCache(cacheKey);
@@ -270,18 +284,27 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
         final cachedData = await fileInfo.file.readAsString();
         final jsonData = json.decode(cachedData);
         if (jsonData['status'] == 'success') {
+          final authorName = jsonData['data']['name'];
           setState(() {
-            _authorCache[authorId] = jsonData['data']['name'];
+            _authorCache[authorId] = authorName;
           });
+          print('📦 Using cached author ID $authorId: $authorName');
           return;
         }
       }
 
       // If not in cache, fetch from network
+      print('📡 Fetching author ID $authorId from API: $url');
       final response = await http.get(Uri.parse(url));
+      print('📡 API Response for author ID $authorId: ${response.statusCode}');
+
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
+        print('📡 API Data for author ID $authorId: ${response.body}');
+
         if (jsonData['status'] == 'success') {
+          final authorName = jsonData['data']['name'];
+
           // Cache the result
           await _cacheManager.putFile(
             url,
@@ -291,12 +314,21 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
           );
 
           setState(() {
-            _authorCache[authorId] = jsonData['data']['name'];
+            _authorCache[authorId] = authorName;
           });
+          print('✅ Successfully fetched author ID $authorId: $authorName');
+        } else {
+          print(
+            '❌ API returned error for author ID $authorId: ${jsonData['message']}',
+          );
         }
+      } else {
+        print(
+          '❌ HTTP error fetching author ID $authorId: ${response.statusCode}',
+        );
       }
     } catch (e) {
-      print('Error fetching author: $e');
+      print('❌ Exception fetching author ID $authorId: $e');
     }
   }
 
@@ -313,9 +345,18 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
                 item['manual_author']?.toString().toLowerCase() ?? "";
             final authorName =
                 item['author_name']?.toString().toLowerCase() ?? "";
+
+            // Also check cached author names
+            final authorId = item['author_id']?.toString();
+            final cachedAuthor =
+                (authorId != null && _authorCache.containsKey(authorId))
+                    ? _authorCache[authorId]!.toLowerCase()
+                    : "";
+
             return title.contains(_searchQuery.toLowerCase()) ||
                 manualAuthor.contains(_searchQuery.toLowerCase()) ||
-                authorName.contains(_searchQuery.toLowerCase());
+                authorName.contains(_searchQuery.toLowerCase()) ||
+                cachedAuthor.contains(_searchQuery.toLowerCase());
           }).toList();
     }
 
@@ -778,14 +819,33 @@ class _MarsiyaAudioScreenState extends State<MarsiyaAudioScreen>
 
   Widget _buildMarsiyaItem(Map<String, dynamic> item) {
     String displayAuthor = "";
-    if (item['manual_author'] != null &&
-        item['manual_author'].toString().isNotEmpty) {
-      displayAuthor = item['manual_author'];
-    } else if (item['author_id'] != null &&
-        item['author_id'].toString() == "1") {
-      displayAuthor = _authorCache["1"] ?? "Loading...";
+    final authorId = item['author_id']?.toString();
+    final manualAuthor = item['manual_author']?.toString() ?? '';
+    final authorName = item['author_name']?.toString() ?? '';
+
+    if (manualAuthor.isNotEmpty) {
+      // 1. Manual author exists - use it
+      displayAuthor = manualAuthor;
+      print('✅ Using manual author: $manualAuthor');
+    } else if (authorId != null &&
+        authorId.isNotEmpty &&
+        authorId != 'null' &&
+        _authorCache.containsKey(authorId)) {
+      // 2. Author ID exists and we have it cached - use cached name
+      displayAuthor = _authorCache[authorId]!;
+      print('✅ Using cached author for ID $authorId: $displayAuthor');
+    } else if (authorName.isNotEmpty) {
+      // 3. Author name field is populated - use it
+      displayAuthor = authorName;
+      print('✅ Using author_name: $authorName');
+    } else if (authorId != null && authorId.isNotEmpty && authorId != 'null') {
+      // 4. Author ID exists but not cached yet - show loading
+      displayAuthor = "Loading...";
+      print('⏳ Loading author for ID: $authorId');
     } else {
-      displayAuthor = item['author_name'] ?? "Unknown";
+      // 5. No author info available
+      displayAuthor = "Unknown";
+      print('❌ No author info available');
     }
 
     String uploadedDate = item['uploaded_date'] ?? "";

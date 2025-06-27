@@ -122,29 +122,32 @@ class ViewTrackingService {
   static Future<List<dynamic>> getMarsiyaRecommendations() async {
     try {
       final url = Uri.parse(
-        '$baseUrl/get_marsiya_audio_recommendation.php?api_key=$apiKey',
+        '$baseUrl/get_marsiya_recommendations.php?api_key=$apiKey',
       );
 
+      print('🔄 Calling Marsiya Recommendations API: $url');
       final response = await http.get(url);
+      print('📡 Recommendations API Response Status: ${response.statusCode}');
+      print('📡 Recommendations API Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body);
 
         if (jsonData['status'] == 'success') {
           print(
-            'Fetched ${jsonData['data']?.length ?? 0} marsiya recommendations',
+            '✅ Fetched ${jsonData['data']?.length ?? 0} marsiya recommendations',
           );
           return jsonData['data'] ?? [];
         } else {
-          print('API Error getting recommendations: ${jsonData['message']}');
+          print('❌ API Error getting recommendations: ${jsonData['message']}');
           return [];
         }
       } else {
-        print('Failed to get recommendations: HTTP ${response.statusCode}');
+        print('❌ Failed to get recommendations: HTTP ${response.statusCode}');
         return [];
       }
     } catch (e) {
-      print('Error getting marsiya recommendations: $e');
+      print('❌ Error getting marsiya recommendations: $e');
       return [];
     }
   }

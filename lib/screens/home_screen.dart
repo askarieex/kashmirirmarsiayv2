@@ -2146,10 +2146,11 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
                 TextButton(
                   onPressed: () {
-                    // Navigate to all marsiya screen
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('View All Marsiya - Coming Soon!'),
+                    // Navigate to Marsiya screen
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MarsiyaScreen(),
                       ),
                     );
                   },
@@ -2178,48 +2179,60 @@ class _HomeScreenState extends State<HomeScreen>
 
           // Horizontal Scrollable Cards
           SizedBox(
-            height: 220, // Increased height for better card design
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              itemCount: _recommendedMarsiya.length,
-              itemBuilder: (context, index) {
-                final marsiya = _recommendedMarsiya[index];
-                return AnimationConfiguration.staggeredList(
-                  position: index,
-                  duration: const Duration(milliseconds: 600),
-                  delay: Duration(milliseconds: 100 * index),
-                  child: SlideAnimation(
-                    horizontalOffset: 50,
-                    child: FadeInAnimation(
-                      child: _buildMarsiyaCard(marsiya, index),
+            height: 240, // Adjusted height for clean card design
+            child:
+                _isLoadingRecommendations
+                    ? _buildRecommendationLoadingState()
+                    : _recommendedMarsiya.isEmpty
+                    ? _buildEmptyRecommendationsState()
+                    : ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      itemCount: _recommendedMarsiya.length,
+                      itemBuilder: (context, index) {
+                        final marsiya = _recommendedMarsiya[index];
+                        return AnimationConfiguration.staggeredList(
+                          position: index,
+                          duration: const Duration(milliseconds: 600),
+                          delay: Duration(milliseconds: 100 * index),
+                          child: SlideAnimation(
+                            horizontalOffset: 50,
+                            child: FadeInAnimation(
+                              child: _buildMarsiyaCard(marsiya, index),
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  ),
-                );
-              },
-            ),
           ),
         ],
       ),
     );
   }
 
-  // Build individual Marsiya Card
+  // Build individual Marsiya Card - Clean & Beautiful Design
   Widget _buildMarsiyaCard(Map<String, dynamic> marsiya, int index) {
-    final List<List<Color>> gradientColors = [
-      [const Color(0xFF667eea), const Color(0xFF764ba2)], // Purple-Blue
-      [const Color(0xFFf093fb), const Color(0xFFf5576c)], // Pink-Red
-      [const Color(0xFF4facfe), const Color(0xFF00f2fe)], // Blue-Cyan
-      [const Color(0xFF43e97b), const Color(0xFF38f9d7)], // Green-Teal
-      [const Color(0xFFfa709a), const Color(0xFFfee140)], // Pink-Yellow
+    // Clean, modern color palette
+    final List<List<Color>> cleanGradients = [
+      [const Color(0xFF6366F1), const Color(0xFF8B5CF6)], // Indigo-Purple
+      [const Color(0xFFEC4899), const Color(0xFFF97316)], // Pink-Orange
+      [const Color(0xFF06B6D4), const Color(0xFF3B82F6)], // Cyan-Blue
+      [const Color(0xFF10B981), const Color(0xFF059669)], // Emerald-Green
+      [const Color(0xFFF59E0B), const Color(0xFFEF4444)], // Amber-Red
     ];
 
-    final List<Color> colors = gradientColors[index % gradientColors.length];
+    final gradientColors = cleanGradients[index % cleanGradients.length];
+
+    // Get default poster image from assets if no image_url provided
+    String imageUrl = '';
+    if (marsiya['image_url'] != null &&
+        marsiya['image_url'].toString().isNotEmpty) {
+      imageUrl = marsiya['image_url'].toString();
+    }
 
     return GestureDetector(
       onTap: () {
-        // Navigate to full marsiya audio player
         final audioId = marsiya['id']?.toString() ?? '';
         if (audioId.isNotEmpty) {
           Navigator.push(
@@ -2228,265 +2241,266 @@ class _HomeScreenState extends State<HomeScreen>
               builder: (context) => FullMarsiyaAudioPlay(audioId: audioId),
             ),
           );
-        } else {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Invalid audio ID')));
         }
       },
       child: Container(
-        width: 160,
-        margin: const EdgeInsets.symmetric(horizontal: 8),
+        width: 180, // Slightly wider for better content
+        margin: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
+          color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: colors[0].withOpacity(0.3),
-              blurRadius: 12,
+              color: gradientColors[0].withOpacity(0.15),
+              blurRadius: 20,
               spreadRadius: 0,
-              offset: const Offset(0, 6),
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 6,
+              spreadRadius: 0,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
-          child: Stack(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Background Gradient
+              // Image Section with better design
               Container(
+                height: 120,
+                width: double.infinity,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: colors,
+                    colors: gradientColors,
                   ),
                 ),
-              ),
-
-              // Background Pattern
-              Positioned(
-                right: -30,
-                bottom: -30,
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.1),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: -20,
-                top: -20,
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.1),
-                  ),
-                ),
-              ),
-
-              // Main Content
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Stack(
                   children: [
-                    // Poster Image Area
-                    Container(
-                      width: double.infinity,
-                      height: 90,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.3),
-                          width: 1,
+                    // Background pattern
+                    Positioned(
+                      right: -15,
+                      top: -15,
+                      child: Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withOpacity(0.1),
                         ),
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Stack(
-                          children: [
-                            // Actual poster image or placeholder
-                            marsiya['image_url'] != null &&
-                                    marsiya['image_url'].toString().isNotEmpty
-                                ? UniversalImage(
-                                  imageUrl: marsiya['image_url'],
-                                  width: double.infinity,
-                                  height: double.infinity,
-                                  fit: BoxFit.cover,
-                                  placeholder: Container(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                        colors: [
-                                          Colors.white.withOpacity(0.2),
-                                          Colors.white.withOpacity(0.1),
-                                        ],
-                                      ),
-                                    ),
-                                    child: const Center(
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2,
-                                      ),
-                                    ),
-                                  ),
-                                  errorWidget: Container(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                        colors: [
-                                          Colors.white.withOpacity(0.2),
-                                          Colors.white.withOpacity(0.1),
-                                        ],
-                                      ),
-                                    ),
-                                    child: const Center(
-                                      child: Icon(
-                                        IconlyBold.document,
-                                        color: Colors.white,
-                                        size: 32,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                                : Container(
+                    ),
+                    Positioned(
+                      left: -10,
+                      bottom: -10,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withOpacity(0.1),
+                        ),
+                      ),
+                    ),
+
+                    // Main image or default poster
+                    if (imageUrl.isNotEmpty)
+                      Positioned.fill(
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(20),
+                            topRight: Radius.circular(20),
+                          ),
+                          child: CachedNetworkImage(
+                            imageUrl: imageUrl,
+                            fit: BoxFit.cover,
+                            placeholder:
+                                (context, url) => Container(
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
-                                      colors: [
-                                        Colors.white.withOpacity(0.2),
-                                        Colors.white.withOpacity(0.1),
-                                      ],
+                                      colors: gradientColors,
+                                    ),
+                                  ),
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                ),
+                            errorWidget:
+                                (context, url, error) => Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: gradientColors,
                                     ),
                                   ),
                                   child: const Center(
                                     child: Icon(
                                       IconlyBold.document,
                                       color: Colors.white,
-                                      size: 32,
+                                      size: 40,
                                     ),
                                   ),
                                 ),
-                            // Play button overlay
-                            Center(
-                              child: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.9),
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.2),
-                                      blurRadius: 8,
-                                      spreadRadius: 0,
+                          ),
+                        ),
+                      )
+                    else
+                      // Default beautiful poster with Islamic/Marsiya theme
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: gradientColors,
+                            ),
+                          ),
+                          child: Stack(
+                            children: [
+                              // Islamic pattern background
+                              Center(
+                                child: Icon(
+                                  IconlyBold.document,
+                                  color: Colors.white.withOpacity(0.3),
+                                  size: 50,
+                                ),
+                              ),
+                              // Beautiful overlay text
+                              Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.mosque_outlined,
+                                      color: Colors.white.withOpacity(0.8),
+                                      size: 32,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'مرثیہ',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white.withOpacity(0.9),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ],
-                                ),
-                                child: Icon(
-                                  IconlyBold.play,
-                                  color: colors[0],
-                                  size: 20,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // Title
-                    Text(
-                      marsiya['title'] ?? 'Unknown Title',
-                      style: GoogleFonts.nunitoSans(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        height: 1.2,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    // Author - Handle both manual_author and author_name fields
-                    Text(
-                      marsiya['manual_author']?.toString().isNotEmpty == true
-                          ? marsiya['manual_author']
-                          : marsiya['author_name'] ?? 'Unknown Artist',
-                      style: GoogleFonts.nunitoSans(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-
-                    const Spacer(),
-
-                    // Bottom Row - Duration and Views
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                IconlyLight.time_circle,
-                                color: Colors.white,
-                                size: 12,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                marsiya['duration'] ?? '--:--',
-                                style: GoogleFonts.nunitoSans(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ],
                           ),
                         ),
+                      ),
 
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
+                    // Play button overlay
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 8,
+                              spreadRadius: 0,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          IconlyBold.play,
+                          color: gradientColors[0],
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Content Section - Clean and minimalist
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Title
+                      Text(
+                        marsiya['title'] ?? 'Unknown Title',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF1F2937),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          height: 1.3,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+
+                      const SizedBox(height: 4),
+
+                      // Author
+                      Text(
+                        marsiya['manual_author']?.toString().isNotEmpty == true
+                            ? marsiya['manual_author']
+                            : marsiya['author_name'] ?? 'Unknown Artist',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF6B7280),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+
+                      const Spacer(),
+
+                      // Bottom info - Clean design
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Duration
+                          Row(
+                            children: [
+                              Icon(
+                                IconlyLight.time_circle,
+                                color: const Color(0xFF9CA3AF),
+                                size: 14,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                marsiya['duration'] ?? '--:--',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF6B7280),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
+
+                          // Views
+                          Row(
                             children: [
                               Icon(
                                 IconlyLight.show,
-                                color: Colors.white,
-                                size: 12,
+                                color: const Color(0xFF9CA3AF),
+                                size: 14,
                               ),
                               const SizedBox(width: 4),
                               Text(
@@ -2496,23 +2510,164 @@ class _HomeScreenState extends State<HomeScreen>
                                       ) ??
                                       0,
                                 ),
-                                style: GoogleFonts.nunitoSans(
-                                  color: Colors.white,
-                                  fontSize: 10,
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF6B7280),
+                                  fontSize: 11,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // Build recommendation loading state - Updated for clean design
+  Widget _buildRecommendationLoadingState() {
+    return ListView.builder(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      itemCount: 3, // Show 3 skeleton loaders
+      itemBuilder: (context, index) {
+        return Container(
+          width: 180,
+          margin: const EdgeInsets.symmetric(horizontal: 6),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                spreadRadius: 0,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Image placeholder - matches new height
+              Container(
+                height: 120,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+              ),
+
+              // Content section
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Title placeholder
+                      Container(
+                        height: 16,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      // Second line of title
+                      Container(
+                        height: 16,
+                        width: 120,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Author placeholder
+                      Container(
+                        height: 14,
+                        width: 100,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                      ),
+
+                      const Spacer(),
+
+                      // Bottom info placeholder
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            height: 12,
+                            width: 60,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
+                          Container(
+                            height: 12,
+                            width: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Build empty recommendations state
+  Widget _buildEmptyRecommendationsState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(IconlyLight.document, size: 48, color: Colors.grey.shade400),
+          const SizedBox(height: 16),
+          Text(
+            'No recommendations available',
+            style: GoogleFonts.nunitoSans(
+              color: Colors.grey.shade600,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Check back later for personalized content',
+            style: GoogleFonts.nunitoSans(
+              color: Colors.grey.shade500,
+              fontSize: 12,
+            ),
+          ),
+        ],
       ),
     );
   }
