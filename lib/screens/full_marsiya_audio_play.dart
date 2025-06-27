@@ -370,9 +370,19 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
         print("Play() called successfully");
 
         // ✅ Track view count when audio starts playing (only once per session)
+        print(
+          '🔍 View tracking check: _viewCounted=$_viewCounted, audioId="${widget.audioId}"',
+        );
         if (!_viewCounted && widget.audioId.isNotEmpty) {
+          print(
+            '🎯 Starting view tracking for Marsiya audioId: ${widget.audioId}',
+          );
           _viewCounted = true;
           _trackMarsiyaView();
+        } else {
+          print(
+            '❌ View tracking skipped: _viewCounted=$_viewCounted, audioId="${widget.audioId}"',
+          );
         }
       }
     } catch (e) {
@@ -738,7 +748,7 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _infoChip(IconlyLight.show, "${views.toString()} views"),
+            _infoChip(IconlyLight.show, "$views views"),
             _infoChip(IconlyLight.calendar, dateUploaded),
           ],
         ),

@@ -12,11 +12,14 @@ class ViewTrackingService {
         '$baseUrl/update_noha_view.php?api_key=$apiKey&noha_id=$nohaId',
       );
 
+      print('🔄 Calling Noha API: $url');
       final response = await http.get(url);
+      print('📡 Noha API Response Status: ${response.statusCode}');
+      print('📡 Noha API Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body);
-        print('Noha view updated for ID $nohaId: ${jsonData['message']}');
+        print('✅ Noha view updated for ID $nohaId: ${jsonData['message']}');
 
         return {
           'success': jsonData['status'] == 'success',
@@ -46,11 +49,14 @@ class ViewTrackingService {
         '$baseUrl/update_marsiya_view.php?api_key=$apiKey&audio_id=$audioId',
       );
 
+      print('🔄 Calling Marsiya API: $url');
       final response = await http.get(url);
+      print('📡 Marsiya API Response Status: ${response.statusCode}');
+      print('📡 Marsiya API Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body);
-        print('Marsiya view updated for ID $audioId: ${jsonData['message']}');
+        print('✅ Marsiya view updated for ID $audioId: ${jsonData['message']}');
 
         return {
           'success': jsonData['status'] == 'success',
@@ -80,15 +86,22 @@ class ViewTrackingService {
         '$baseUrl/update_profile_view.php?api_key=$apiKey&profile_id=$profileId',
       );
 
+      print('🔄 Calling Profile API: $url');
       final response = await http.get(url);
+      print('📡 Profile API Response Status: ${response.statusCode}');
+      print('📡 Profile API Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body);
-        print('Profile view updated for ID $profileId: ${jsonData['message']}');
+        print(
+          '✅ Profile view updated for ID $profileId: ${jsonData['message']}',
+        );
 
         return {
           'success': jsonData['status'] == 'success',
-          'views': jsonData['data']?['views'] ?? 0,
+          'views':
+              jsonData['data']?['total_views'] ??
+              0, // Profile API returns 'total_views'
           'message': jsonData['message'] ?? 'Unknown response',
         };
       } else {

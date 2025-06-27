@@ -653,7 +653,7 @@ class _FullNohaAudioPlayState extends State<FullNohaAudioPlay>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _infoChip(IconlyLight.show, "${views.toString()} views"),
+            _infoChip(IconlyLight.show, "$views views"),
             _infoChip(IconlyLight.calendar, dateUploaded),
           ],
         ),
