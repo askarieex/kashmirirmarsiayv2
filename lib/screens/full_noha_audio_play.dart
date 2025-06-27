@@ -13,6 +13,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:iconly/iconly.dart';
 import 'dart:io';
 import 'package:share_plus/share_plus.dart';
+import 'dart:async';
 
 // Import the persistent mini player notifier.
 import '../widgets/persistent_mini_player.dart';
@@ -75,9 +76,16 @@ class _FullNohaAudioPlayState extends State<FullNohaAudioPlay>
   // Flag to track if view has been counted for this audio session
   bool _viewCounted = false;
 
+  // Timer for view counting (7 seconds of playback)
+  Timer? _viewCountTimer;
+  bool _viewTimerStarted = false;
+
   @override
   void initState() {
     super.initState();
+    print(
+      '🚀 Noha Player InitState: _viewCounted=$_viewCounted, nohaId=${widget.nohaId}',
+    );
     // Hide persistent mini-player on this full-screen player.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       showPersistentMiniPlayerNotifier.value = false;
@@ -129,6 +137,7 @@ class _FullNohaAudioPlayState extends State<FullNohaAudioPlay>
     }
     _tabCtrl.dispose();
     _animCtrl.dispose();
+    _viewCountTimer?.cancel(); // Clean up view count timer
     super.dispose();
   }
 
@@ -219,6 +228,7 @@ class _FullNohaAudioPlayState extends State<FullNohaAudioPlay>
             print("Updated global variables:");
             print("- Global Title: ${globalNohaTitle.value}");
             print("- Global Artist: ${globalNohaArtistName.value}");
+            print("🔢 Initial Noha Views: $views");
 
             _lyricsTab = LyricsTab(pdfUrl: pdfUrl);
           }
@@ -280,6 +290,9 @@ class _FullNohaAudioPlayState extends State<FullNohaAudioPlay>
       if (isPlaying) {
         await _player.pause();
         if (mounted) setState(() => isWaiting = false);
+
+        // Stop view count timer if user pauses before 7 seconds
+        _stopViewCountTimer();
       } else {
         // Stop any playing marsiya audio before playing noha
         coordPlayerPlayback(true);
@@ -290,22 +303,50 @@ class _FullNohaAudioPlayState extends State<FullNohaAudioPlay>
         await _player.play();
         if (mounted) setState(() => isWaiting = true);
 
-        // ✅ Track view count when audio starts playing (only once per session)
-        print(
-          '🔍 View tracking check: _viewCounted=$_viewCounted, nohaId="${widget.nohaId}"',
-        );
-        if (!_viewCounted && widget.nohaId.isNotEmpty) {
-          print('🎯 Starting view tracking for Noha nohaId: ${widget.nohaId}');
-          _viewCounted = true;
-          _trackNohaView();
-        } else {
-          print(
-            '❌ View tracking skipped: _viewCounted=$_viewCounted, nohaId="${widget.nohaId}"',
-          );
-        }
+        // ✅ Start 7-second timer for view counting (only once per session)
+        _startViewCountTimer();
       }
     } catch (e) {
       if (mounted) setState(() => errorMsg = "Playback error: $e");
+    }
+  }
+
+  // Start 7-second timer for view counting
+  void _startViewCountTimer() {
+    if (_viewCounted || _viewTimerStarted || widget.nohaId.isEmpty) {
+      print(
+        '🔍 Noha View timer skipped: _viewCounted=$_viewCounted, _viewTimerStarted=$_viewTimerStarted',
+      );
+      return;
+    }
+
+    print(
+      '⏱️ Starting 7-second view count timer for Noha nohaId: ${widget.nohaId}',
+    );
+    _viewTimerStarted = true;
+
+    _viewCountTimer = Timer(const Duration(seconds: 7), () {
+      if (mounted && !_viewCounted && _player.playing) {
+        print(
+          '✅ 7 seconds completed! Counting view for Noha nohaId: ${widget.nohaId}',
+        );
+        _viewCounted = true;
+        _trackNohaView();
+      } else {
+        print(
+          '❌ Noha View timer completed but conditions not met: mounted=$mounted, _viewCounted=$_viewCounted, playing=${_player.playing}',
+        );
+      }
+    });
+  }
+
+  // Stop view count timer if user pauses before 7 seconds
+  void _stopViewCountTimer() {
+    if (_viewCountTimer != null && !_viewCounted) {
+      print('⏹️ Stopping Noha view count timer (user paused before 7 seconds)');
+      _viewCountTimer?.cancel();
+      _viewCountTimer = null;
+      _viewTimerStarted = false;
     }
   }
 
@@ -319,8 +360,15 @@ class _FullNohaAudioPlayState extends State<FullNohaAudioPlay>
         );
         // Update the displayed view count with the new count from server
         if (mounted) {
+          final newViewCount = result['views'];
+          final formattedViews = ViewTrackingService.formatViewCount(
+            newViewCount,
+          );
+          print(
+            '🔄 Updating Noha views: $views → $formattedViews (raw: $newViewCount)',
+          );
           setState(() {
-            views = ViewTrackingService.formatViewCount(result['views']);
+            views = formattedViews;
           });
         }
       } else {

@@ -3,6 +3,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:marquee/marquee.dart';
@@ -129,9 +130,16 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
   // Flag to track if view has been counted for this audio session
   bool _viewCounted = false;
 
+  // Timer for view counting (7 seconds of playback)
+  Timer? _viewCountTimer;
+  bool _viewTimerStarted = false;
+
   @override
   void initState() {
     super.initState();
+    print(
+      '🚀 Marsiya Player InitState: _viewCounted=$_viewCounted, audioId=${widget.audioId}',
+    );
     // Hide persistent mini-player on this full-screen player.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       showPersistentMiniPlayerNotifier.value = false;
@@ -188,6 +196,7 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
     }
     _tabCtrl.dispose();
     _animCtrl.dispose();
+    _viewCountTimer?.cancel(); // Clean up view count timer
     super.dispose();
   }
 
@@ -283,6 +292,7 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
             print("Author: $author");
             print("Audio URL: $audioUrl");
             print("Duration: $durationStr");
+            print("🔢 Initial Views: $views");
 
             // Update global variables for the mini player.
             globalTrackTitle = title;
@@ -354,6 +364,9 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
         print("Pausing audio");
         await _player.pause();
         if (mounted) setState(() => isWaiting = false);
+
+        // Stop view count timer if user pauses before 7 seconds
+        _stopViewCountTimer();
       } else {
         print("Starting audio playback");
         // Stop any playing noha audio before playing marsiya
@@ -369,25 +382,51 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
         if (mounted) setState(() => isWaiting = true);
         print("Play() called successfully");
 
-        // ✅ Track view count when audio starts playing (only once per session)
-        print(
-          '🔍 View tracking check: _viewCounted=$_viewCounted, audioId="${widget.audioId}"',
-        );
-        if (!_viewCounted && widget.audioId.isNotEmpty) {
-          print(
-            '🎯 Starting view tracking for Marsiya audioId: ${widget.audioId}',
-          );
-          _viewCounted = true;
-          _trackMarsiyaView();
-        } else {
-          print(
-            '❌ View tracking skipped: _viewCounted=$_viewCounted, audioId="${widget.audioId}"',
-          );
-        }
+        // ✅ Start 7-second timer for view counting (only once per session)
+        _startViewCountTimer();
       }
     } catch (e) {
       print("Playback error: $e");
       if (mounted) setState(() => errorMsg = "Playback error: $e");
+    }
+  }
+
+  // Start 7-second timer for view counting
+  void _startViewCountTimer() {
+    if (_viewCounted || _viewTimerStarted || widget.audioId.isEmpty) {
+      print(
+        '🔍 View timer skipped: _viewCounted=$_viewCounted, _viewTimerStarted=$_viewTimerStarted',
+      );
+      return;
+    }
+
+    print(
+      '⏱️ Starting 7-second view count timer for Marsiya audioId: ${widget.audioId}',
+    );
+    _viewTimerStarted = true;
+
+    _viewCountTimer = Timer(const Duration(seconds: 7), () {
+      if (mounted && !_viewCounted && _player.playing) {
+        print(
+          '✅ 7 seconds completed! Counting view for Marsiya audioId: ${widget.audioId}',
+        );
+        _viewCounted = true;
+        _trackMarsiyaView();
+      } else {
+        print(
+          '❌ View timer completed but conditions not met: mounted=$mounted, _viewCounted=$_viewCounted, playing=${_player.playing}',
+        );
+      }
+    });
+  }
+
+  // Stop view count timer if user pauses before 7 seconds
+  void _stopViewCountTimer() {
+    if (_viewCountTimer != null && !_viewCounted) {
+      print('⏹️ Stopping view count timer (user paused before 7 seconds)');
+      _viewCountTimer?.cancel();
+      _viewCountTimer = null;
+      _viewTimerStarted = false;
     }
   }
 
@@ -403,8 +442,15 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
         );
         // Update the displayed view count with the new count from server
         if (mounted) {
+          final newViewCount = result['views'];
+          final formattedViews = ViewTrackingService.formatViewCount(
+            newViewCount,
+          );
+          print(
+            '🔄 Updating views: $views → $formattedViews (raw: $newViewCount)',
+          );
           setState(() {
-            views = ViewTrackingService.formatViewCount(result['views']);
+            views = formattedViews;
           });
         }
       } else {
