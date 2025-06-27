@@ -15,6 +15,7 @@ import 'dart:io';
 
 // Import the persistent mini player notifier.
 import '../widgets/persistent_mini_player.dart';
+import '../services/view_tracking_service.dart';
 
 // Import additional screens for bottom navigation.
 
@@ -124,6 +125,9 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
 
   // Flag to indicate if this screen is being replaced (via next/previous navigation)
   bool _isReplaced = false;
+
+  // Flag to track if view has been counted for this audio session
+  bool _viewCounted = false;
 
   @override
   void initState() {
@@ -364,10 +368,40 @@ class _FullMarsiyaAudioPlayState extends State<FullMarsiyaAudioPlay>
         await _player.play();
         if (mounted) setState(() => isWaiting = true);
         print("Play() called successfully");
+
+        // ✅ Track view count when audio starts playing (only once per session)
+        if (!_viewCounted && widget.audioId.isNotEmpty) {
+          _viewCounted = true;
+          _trackMarsiyaView();
+        }
       }
     } catch (e) {
       print("Playback error: $e");
       if (mounted) setState(() => errorMsg = "Playback error: $e");
+    }
+  }
+
+  // Track Marsiya view using the ViewTrackingService
+  Future<void> _trackMarsiyaView() async {
+    try {
+      final result = await ViewTrackingService.incrementMarsiyaView(
+        widget.audioId,
+      );
+      if (result['success']) {
+        print(
+          '✅ Marsiya view tracked successfully: ${result['views']} total views',
+        );
+        // Update the displayed view count with the new count from server
+        if (mounted) {
+          setState(() {
+            views = ViewTrackingService.formatViewCount(result['views']);
+          });
+        }
+      } else {
+        print('❌ Failed to track Marsiya view: ${result['message']}');
+      }
+    } catch (e) {
+      print('❌ Error tracking Marsiya view: $e');
     }
   }
 

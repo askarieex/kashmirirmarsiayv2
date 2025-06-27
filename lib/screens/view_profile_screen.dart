@@ -10,6 +10,7 @@ import 'dart:ui' as ui;
 import 'dart:math' as math;
 import 'package:iconly/iconly.dart';
 import 'package:marquee/marquee.dart';
+import '../services/view_tracking_service.dart';
 
 class ViewProfileScreen extends StatefulWidget {
   final String profileId;
@@ -36,6 +37,9 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
   List<String> _availableTabs = [];
   bool _showMarsiyaTab = false;
   bool _showNohaTab = false;
+
+  // Flag to track if profile view has been counted
+  bool _viewCounted = false;
 
   // Enhanced color palette
   static const Color primaryColor = Color(0xFF1A8754);
@@ -152,6 +156,12 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
               _noha.isNotEmpty) {
             _tabController?.animateTo(_showMarsiyaTab ? 1 : 0);
           }
+
+          // ✅ Track profile view when profile loads successfully (only once)
+          if (!_viewCounted) {
+            _viewCounted = true;
+            _trackProfileView();
+          }
         } else {
           setState(() => _isLoading = false);
         }
@@ -160,6 +170,39 @@ class _ViewProfileScreenState extends State<ViewProfileScreen>
       }
     } catch (e) {
       setState(() => _isLoading = false);
+    }
+  }
+
+  // Track Profile view using the ViewTrackingService
+  Future<void> _trackProfileView() async {
+    try {
+      final result = await ViewTrackingService.incrementProfileView(
+        widget.profileId,
+      );
+      if (result['success']) {
+        print(
+          '✅ Profile view tracked successfully: ${result['views']} total views',
+        );
+        // Update the profile's totalViews if needed
+        if (mounted && _profile != null) {
+          setState(() {
+            // Update the profile's total views with the new count from server
+            _profile = ArtistItem(
+              id: _profile!.id,
+              name: _profile!.name,
+              imageUrl: _profile!.imageUrl,
+              profileImage: _profile!.profileImage,
+              category: _profile!.category,
+              description: _profile!.description,
+              totalViews: result['views'],
+            );
+          });
+        }
+      } else {
+        print('❌ Failed to track Profile view: ${result['message']}');
+      }
+    } catch (e) {
+      print('❌ Error tracking Profile view: $e');
     }
   }
 

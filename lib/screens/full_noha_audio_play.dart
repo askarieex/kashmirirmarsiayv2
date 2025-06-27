@@ -16,6 +16,7 @@ import 'package:share_plus/share_plus.dart';
 
 // Import the persistent mini player notifier.
 import '../widgets/persistent_mini_player.dart';
+import '../services/view_tracking_service.dart';
 
 // Import additional screens for bottom navigation.
 import 'home_screen.dart';
@@ -70,6 +71,9 @@ class _FullNohaAudioPlayState extends State<FullNohaAudioPlay>
 
   // Flag to indicate if this screen is being replaced (via next/previous navigation)
   bool _isReplaced = false;
+
+  // Flag to track if view has been counted for this audio session
+  bool _viewCounted = false;
 
   @override
   void initState() {
@@ -285,9 +289,37 @@ class _FullNohaAudioPlayState extends State<FullNohaAudioPlay>
         }
         await _player.play();
         if (mounted) setState(() => isWaiting = true);
+
+        // ✅ Track view count when audio starts playing (only once per session)
+        if (!_viewCounted && widget.nohaId.isNotEmpty) {
+          _viewCounted = true;
+          _trackNohaView();
+        }
       }
     } catch (e) {
       if (mounted) setState(() => errorMsg = "Playback error: $e");
+    }
+  }
+
+  // Track Noha view using the ViewTrackingService
+  Future<void> _trackNohaView() async {
+    try {
+      final result = await ViewTrackingService.incrementNohaView(widget.nohaId);
+      if (result['success']) {
+        print(
+          '✅ Noha view tracked successfully: ${result['views']} total views',
+        );
+        // Update the displayed view count with the new count from server
+        if (mounted) {
+          setState(() {
+            views = ViewTrackingService.formatViewCount(result['views']);
+          });
+        }
+      } else {
+        print('❌ Failed to track Noha view: ${result['message']}');
+      }
+    } catch (e) {
+      print('❌ Error tracking Noha view: $e');
     }
   }
 

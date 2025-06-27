@@ -39,8 +39,10 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:iconly/iconly.dart'; // Add IconlyLight icons
 import 'package:shimmer/shimmer.dart';
 import 'package:lottie/lottie.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'full_marsiya_audio_play.dart';
 import 'full_noha_audio_play.dart';
+import '../services/view_tracking_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -104,6 +106,10 @@ class _HomeScreenState extends State<HomeScreen>
     {'label': 'Contact Us', 'icon': Icons.contact_mail},
   ];
 
+  // Real data for Recommended Marsiya from API
+  List<dynamic> _recommendedMarsiya = [];
+  bool _isLoadingRecommendations = true;
+
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
@@ -141,6 +147,7 @@ class _HomeScreenState extends State<HomeScreen>
         _fetchPosters(),
         _fetchPaidPromotions(),
         _fetchProfilesByCategory(),
+        _fetchMarsiyaRecommendations(),
       ]);
     } catch (e) {
       debugPrint('Error preloading data: $e');
@@ -271,6 +278,30 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  // Fetch Marsiya Recommendations using ViewTrackingService
+  Future<void> _fetchMarsiyaRecommendations() async {
+    try {
+      setState(() => _isLoadingRecommendations = true);
+
+      final recommendations =
+          await ViewTrackingService.getMarsiyaRecommendations();
+
+      if (mounted) {
+        setState(() {
+          _recommendedMarsiya = recommendations;
+          _isLoadingRecommendations = false;
+        });
+
+        print('✅ Fetched ${recommendations.length} marsiya recommendations');
+      }
+    } catch (e) {
+      print('❌ Error fetching marsiya recommendations: $e');
+      if (mounted) {
+        setState(() => _isLoadingRecommendations = false);
+      }
+    }
+  }
+
   // Popup Message Methods
   void _setupPopupMessageWithRetry() {
     _fetchPopupMessage();
@@ -285,15 +316,45 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   bool _popupShown = false;
+  static const String _popupShownKey = 'welcome_popup_shown';
 
-  void _showTestPopupIfNeeded() {
-    if (!_popupShown && mounted) {
-      debugPrint('Showing fallback test popup message');
+  // Check if popup has been shown before
+  Future<bool> _hasPopupBeenShown() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_popupShownKey) ?? false;
+  }
+
+  // Mark popup as shown
+  Future<void> _markPopupAsShown() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_popupShownKey, true);
+    debugPrint('Popup marked as shown in persistent storage');
+  }
+
+  // Reset popup status (for testing purposes)
+  // To test the popup again during development, call this method
+  // For example: await _resetPopupStatus(); before _preloadData()
+  Future<void> _resetPopupStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_popupShownKey);
+    debugPrint('Popup status reset - will show again next time');
+  }
+
+  Future<void> _showTestPopupIfNeeded() async {
+    // Check if popup has been shown before
+    final hasBeenShown = await _hasPopupBeenShown();
+
+    if (!hasBeenShown && !_popupShown && mounted) {
+      debugPrint('Showing fallback test popup message for the first time');
       _showBeautifulPopup(
         context,
         'Welcome to Kashmiri Marsiya! Check out our latest content and features. Stay updated with our app for more information.',
       );
       _popupShown = true;
+      // Mark as shown permanently
+      await _markPopupAsShown();
+    } else {
+      debugPrint('Popup already shown before, skipping');
     }
   }
 
@@ -326,13 +387,21 @@ class _HomeScreenState extends State<HomeScreen>
 
           if (popupMessage.display) {
             debugPrint('Should show popup: true');
-            Future.delayed(const Duration(milliseconds: 800), () {
-              if (mounted) {
-                debugPrint('Showing popup now');
-                _showBeautifulPopup(context, popupMessage.message);
-                _popupShown = true;
-              }
-            });
+            // Check if popup has been shown before
+            final hasBeenShown = await _hasPopupBeenShown();
+            if (!hasBeenShown) {
+              Future.delayed(const Duration(milliseconds: 800), () async {
+                if (mounted) {
+                  debugPrint('Showing API popup now');
+                  _showBeautifulPopup(context, popupMessage.message);
+                  _popupShown = true;
+                  // Mark as shown permanently
+                  await _markPopupAsShown();
+                }
+              });
+            } else {
+              debugPrint('API popup already shown before, skipping');
+            }
           } else {
             debugPrint('Popup display flag is false, not showing popup');
           }
@@ -368,8 +437,11 @@ class _HomeScreenState extends State<HomeScreen>
             opacity: curvedAnimation,
             child: BeautifulPopup(
               message: message,
-              onClose: () {
+              onClose: () async {
                 Navigator.of(ctx).pop();
+                // Mark popup as shown when user closes it
+                await _markPopupAsShown();
+                _popupShown = true;
               },
             ),
           ),
@@ -1827,6 +1899,9 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ),
         _buildFeatureGrid(),
+        const SizedBox(height: 24),
+        // Recommended Marsiya Section
+        _buildRecommendedMarsiyaSection(),
         const SizedBox(height: 20), // Add extra space at the bottom
       ],
     );
@@ -2028,6 +2103,414 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Build Recommended Marsiya Section
+  Widget _buildRecommendedMarsiyaSection() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section Header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF7B2CBF), // Purple accent
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Recommended Marsiya",
+                      style: GoogleFonts.nunitoSans(
+                        color: textPrimaryColor,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+                TextButton(
+                  onPressed: () {
+                    // Navigate to all marsiya screen
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('View All Marsiya - Coming Soon!'),
+                      ),
+                    );
+                  },
+                  child: Row(
+                    children: [
+                      Text(
+                        "View All",
+                        style: GoogleFonts.nunitoSans(
+                          color: const Color(0xFF7B2CBF),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.arrow_forward_ios,
+                        color: Color(0xFF7B2CBF),
+                        size: 12,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Horizontal Scrollable Cards
+          SizedBox(
+            height: 220, // Increased height for better card design
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: _recommendedMarsiya.length,
+              itemBuilder: (context, index) {
+                final marsiya = _recommendedMarsiya[index];
+                return AnimationConfiguration.staggeredList(
+                  position: index,
+                  duration: const Duration(milliseconds: 600),
+                  delay: Duration(milliseconds: 100 * index),
+                  child: SlideAnimation(
+                    horizontalOffset: 50,
+                    child: FadeInAnimation(
+                      child: _buildMarsiyaCard(marsiya, index),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Build individual Marsiya Card
+  Widget _buildMarsiyaCard(Map<String, dynamic> marsiya, int index) {
+    final List<List<Color>> gradientColors = [
+      [const Color(0xFF667eea), const Color(0xFF764ba2)], // Purple-Blue
+      [const Color(0xFFf093fb), const Color(0xFFf5576c)], // Pink-Red
+      [const Color(0xFF4facfe), const Color(0xFF00f2fe)], // Blue-Cyan
+      [const Color(0xFF43e97b), const Color(0xFF38f9d7)], // Green-Teal
+      [const Color(0xFFfa709a), const Color(0xFFfee140)], // Pink-Yellow
+    ];
+
+    final List<Color> colors = gradientColors[index % gradientColors.length];
+
+    return GestureDetector(
+      onTap: () {
+        // Navigate to full marsiya audio player
+        final audioId = marsiya['id']?.toString() ?? '';
+        if (audioId.isNotEmpty) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => FullMarsiyaAudioPlay(audioId: audioId),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Invalid audio ID')));
+        }
+      },
+      child: Container(
+        width: 160,
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: colors[0].withOpacity(0.3),
+              blurRadius: 12,
+              spreadRadius: 0,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            children: [
+              // Background Gradient
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: colors,
+                  ),
+                ),
+              ),
+
+              // Background Pattern
+              Positioned(
+                right: -30,
+                bottom: -30,
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withOpacity(0.1),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: -20,
+                top: -20,
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withOpacity(0.1),
+                  ),
+                ),
+              ),
+
+              // Main Content
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Poster Image Area
+                    Container(
+                      width: double.infinity,
+                      height: 90,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Stack(
+                          children: [
+                            // Actual poster image or placeholder
+                            marsiya['image_url'] != null &&
+                                    marsiya['image_url'].toString().isNotEmpty
+                                ? UniversalImage(
+                                  imageUrl: marsiya['image_url'],
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  fit: BoxFit.cover,
+                                  placeholder: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          Colors.white.withOpacity(0.2),
+                                          Colors.white.withOpacity(0.1),
+                                        ],
+                                      ),
+                                    ),
+                                    child: const Center(
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  ),
+                                  errorWidget: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          Colors.white.withOpacity(0.2),
+                                          Colors.white.withOpacity(0.1),
+                                        ],
+                                      ),
+                                    ),
+                                    child: const Center(
+                                      child: Icon(
+                                        IconlyBold.document,
+                                        color: Colors.white,
+                                        size: 32,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                : Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Colors.white.withOpacity(0.2),
+                                        Colors.white.withOpacity(0.1),
+                                      ],
+                                    ),
+                                  ),
+                                  child: const Center(
+                                    child: Icon(
+                                      IconlyBold.document,
+                                      color: Colors.white,
+                                      size: 32,
+                                    ),
+                                  ),
+                                ),
+                            // Play button overlay
+                            Center(
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.9),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.2),
+                                      blurRadius: 8,
+                                      spreadRadius: 0,
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  IconlyBold.play,
+                                  color: colors[0],
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Title
+                    Text(
+                      marsiya['title'] ?? 'Unknown Title',
+                      style: GoogleFonts.nunitoSans(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        height: 1.2,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                    const SizedBox(height: 4),
+
+                    // Author - Handle both manual_author and author_name fields
+                    Text(
+                      marsiya['manual_author']?.toString().isNotEmpty == true
+                          ? marsiya['manual_author']
+                          : marsiya['author_name'] ?? 'Unknown Artist',
+                      style: GoogleFonts.nunitoSans(
+                        color: Colors.white.withOpacity(0.8),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                    const Spacer(),
+
+                    // Bottom Row - Duration and Views
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                IconlyLight.time_circle,
+                                color: Colors.white,
+                                size: 12,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                marsiya['duration'] ?? '--:--',
+                                style: GoogleFonts.nunitoSans(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                IconlyLight.show,
+                                color: Colors.white,
+                                size: 12,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                ViewTrackingService.formatViewCount(
+                                  int.tryParse(
+                                        marsiya['views']?.toString() ?? '0',
+                                      ) ??
+                                      0,
+                                ),
+                                style: GoogleFonts.nunitoSans(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
