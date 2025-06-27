@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconly/iconly.dart';
+import '../widgets/universal_image.dart';
 import 'view_profile_screen.dart';
 
 class NohaKhanProfile {
@@ -406,26 +407,24 @@ class _AllNohaKhansScreenState extends State<AllNohaKhansScreen> {
                   radius: 55,
                   backgroundColor: Colors.white,
                   child: ClipOval(
-                    child: CachedNetworkImage(
+                    child: UniversalImage(
                       imageUrl: nohaKhan.profileImage,
-                      placeholder:
-                          (context, url) => const Center(
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Color(0xFF00875A),
-                              ),
-                              strokeWidth: 2,
-                            ),
-                          ),
-                      errorWidget:
-                          (context, url, error) => const Icon(
-                            IconlyLight.profile,
-                            size: 60,
-                            color: Color(0xFFCCCCCC),
-                          ),
                       width: 110,
                       height: 110,
                       fit: BoxFit.cover,
+                      placeholder: const Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Color(0xFF00875A),
+                          ),
+                          strokeWidth: 2,
+                        ),
+                      ),
+                      errorWidget: const Icon(
+                        IconlyLight.profile,
+                        size: 60,
+                        color: Color(0xFFCCCCCC),
+                      ),
                     ),
                   ),
                 ),

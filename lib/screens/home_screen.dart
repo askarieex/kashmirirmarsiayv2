@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../widgets/universal_image.dart';
 import '../widgets/wavy_header_clipper.dart';
 import '../widgets/ultra_beautiful_loading_animation.dart';
 import '../models/poster_item.dart';
@@ -479,7 +480,7 @@ class _HomeScreenState extends State<HomeScreen>
                                           ),
                                         ),
 
-                                        // Top Zakirs section with adjusted spacing
+                                        // Recommended Zakirs section with adjusted spacing
                                         SliverToBoxAdapter(
                                           child:
                                               AnimationConfiguration.staggeredList(
@@ -1399,7 +1400,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          "Top Zakirs",
+                          "Recommended Zakirs",
                           style: GoogleFonts.nunitoSans(
                             color: textPrimaryColor,
                             fontSize: 16,
@@ -1521,7 +1522,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          "Top Noha Khans",
+                          "Recommended Noha Khans",
                           style: GoogleFonts.nunitoSans(
                             color: textPrimaryColor,
                             fontSize: 16,
@@ -1671,34 +1672,34 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                     padding: const EdgeInsets.all(3),
                     child: ClipOval(
-                      child: CachedNetworkImage(
+                      child: UniversalImage(
                         imageUrl: artist.imageUrl,
+                        width: 64,
+                        height: 64,
                         fit: BoxFit.cover,
-                        placeholder:
-                            (context, url) => Container(
-                              color: Colors.grey.shade100,
-                              child: Center(
-                                child: SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      themeColor,
-                                    ),
-                                    strokeWidth: 2,
-                                  ),
+                        placeholder: Container(
+                          color: Colors.grey.shade100,
+                          child: Center(
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  themeColor,
                                 ),
+                                strokeWidth: 2,
                               ),
                             ),
-                        errorWidget:
-                            (context, url, error) => Container(
-                              color: Colors.grey.shade100,
-                              child: Icon(
-                                Icons.person,
-                                color: Colors.grey.shade300,
-                                size: 24,
-                              ),
-                            ),
+                          ),
+                        ),
+                        errorWidget: Container(
+                          color: Colors.grey.shade100,
+                          child: Icon(
+                            Icons.person,
+                            color: Colors.grey.shade300,
+                            size: 24,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -1929,65 +1930,49 @@ class _HomeScreenState extends State<HomeScreen>
             children: [
               Hero(
                 tag: 'poster_${poster.title}',
-                child: Image.network(
-                  poster.imageUrl,
+                child: UniversalImage(
+                  imageUrl: poster.imageUrl,
                   width: double.infinity,
                   height: 180,
-                  fit:
-                      BoxFit
-                          .fill, // Changed from cover to fill to ensure no gaps
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Container(
-                      width: double.infinity,
-                      height: 180,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Colors.purple.shade100,
-                            Colors.blue.shade100,
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(24),
+                  fit: BoxFit.fill,
+                  placeholder: Container(
+                    width: double.infinity,
+                    height: 180,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Colors.purple.shade100, Colors.blue.shade100],
                       ),
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          value:
-                              loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
-                                  : null,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            const Color(0xFF7B2CBF),
-                          ),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Color(0xFF7B2CBF),
                         ),
                       ),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    print('Error loading poster image: $error');
-                    return Container(
-                      width: double.infinity,
-                      height: 180,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Colors.purple.shade50, Colors.blue.shade50],
-                        ),
-                        borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
+                  errorWidget: Container(
+                    width: double.infinity,
+                    height: 180,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Colors.purple.shade50, Colors.blue.shade50],
                       ),
-                      child: Center(
-                        child: Icon(
-                          Icons.image_not_supported,
-                          color: Colors.grey.shade400,
-                          size: 40,
-                        ),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.image_not_supported,
+                        color: Colors.grey.shade400,
+                        size: 40,
                       ),
-                    );
-                  },
+                    ),
+                  ),
                 ),
               ),
               // Add shine effect
